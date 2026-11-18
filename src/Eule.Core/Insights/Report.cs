@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Eule.Core.Localization;
 using Eule.Core.Storage;
 
 namespace Eule.Core.Insights;
@@ -7,22 +8,20 @@ namespace Eule.Core.Insights;
 /// <summary>Turkish words and durations shared by the report and the UI.</summary>
 public static class Words
 {
-    static readonly CultureInfo Tr = new("tr-TR");
-
     /// <summary>Monday-first index (0 = Monday … 6 = Sunday).</summary>
     public static int WeekdayIndex(DateOnly d) => ((int)d.DayOfWeek + 6) % 7;
 
-    public static readonly string[] DayShort = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-    public static readonly string[] DayName = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+    public static string[] DayShort => L.T("days.short").Split(',');
+    public static string[] DayName => L.T("days.long").Split(',');
 
     public static string Duration(int seconds)
     {
         int m = Math.Max(0, seconds) / 60;
-        if (m < 60) return $"{m} dk";
-        return m % 60 == 0 ? $"{m / 60} sa" : $"{m / 60} sa {m % 60} dk";
+        if (m < 60) return L.F("unit.min", m);
+        return m % 60 == 0 ? L.F("unit.hour", m / 60) : L.F("unit.hourMin", m / 60, m % 60);
     }
 
-    public static string Date(DateOnly d) => d.ToString("d MMM ddd", Tr);
+    public static string Date(DateOnly d) => d.ToString("d MMM ddd", L.Culture);
 
     public static DateOnly WeekStart(DateOnly d) => d.AddDays(-WeekdayIndex(d));
 }
@@ -127,13 +126,13 @@ public sealed class Report
         {
             var (day, part, minutes) = PeakBlock(heat);
             if (minutes >= 30)
-                list.Add($"En çok {Words.DayName[day]} {PartWord(part)} oturuyorsun.");
+                list.Add(L.F("insight.peak", Words.DayName[day], PartWord(part)));
         }
 
         // 2. Longest uninterrupted sitting this week.
         var longest = thisWeek.MaxBy(d => d.LongestStretch);
         if (longest is { LongestStretch: >= 20 * 60 })
-            list.Add($"Bu haftaki en uzun kesintisiz oturuşun {Words.Duration(longest.LongestStretch)} ({Words.DayName[Words.WeekdayIndex(longest.Date)]}).");
+            list.Add(L.F("insight.longest", Words.Duration(longest.LongestStretch), Words.DayName[Words.WeekdayIndex(longest.Date)]));
 
         // 3. Compared with last week, per active day.
         var a = thisWeek.Where(Active).ToList();
@@ -143,15 +142,15 @@ public sealed class Report
             int avgNow = (int)a.Average(d => d.SitSeconds), avgThen = (int)b.Average(d => d.SitSeconds);
             int diff = avgNow - avgThen;
             if (Math.Abs(diff) >= 10 * 60)
-                list.Add($"Geçen haftaya göre günde ortalama {Words.Duration(Math.Abs(diff))} daha {(diff < 0 ? "az" : "fazla")} oturdun.");
+                list.Add(L.F(diff < 0 ? "insight.less" : "insight.more", Words.Duration(Math.Abs(diff))));
             else
-                list.Add("Oturma süren geçen haftayla hemen hemen aynı.");
+                list.Add(L.T("insight.same"));
         }
 
         // 4. How often you actually take the break.
         int taken = thisWeek.Sum(d => d.Breaks), missed = thisWeek.Sum(d => d.Skipped + d.EmergencyExits);
         if (taken + missed >= 3)
-            list.Add($"Bu hafta mola verme oranın %{(int)Math.Round(100.0 * taken / (taken + missed))} ({taken} / {taken + missed}).");
+            list.Add(L.F("insight.rate", (int)Math.Round(100.0 * taken / (taken + missed)), taken, taken + missed));
 
         return list;
     }
@@ -176,20 +175,19 @@ public sealed class Report
         _ => [22, 23, 0, 1, 2, 3, 4, 5],
     };
 
-    static string PartWord(DayPart p) => p switch
+    static string PartWord(DayPart p) => L.T(p switch
     {
-        DayPart.Morning => "sabahları",
-        DayPart.Afternoon => "öğleden sonraları",
-        DayPart.Evening => "akşamları",
-        _ => "geceleri",
-    };
+        DayPart.Morning => "part.morning",
+        DayPart.Afternoon => "part.afternoon",
+        DayPart.Evening => "part.evening",
+        _ => "part.night",
+    });
 }
 
 /// <summary>Daily statistics as a semicolon CSV with a BOM, so Excel in Turkish locale opens it correctly.</summary>
 public static class CsvExport
 {
-    public const string Header =
-        "Tarih;Oturma (dk);Mola;Uzaklaşma molası;Atlanan;Ertelenen;Acil çıkış;Göz molası;En uzun kesintisiz (dk)";
+    public static string Header => L.T("csv.header");
 
     public static string Build(IEnumerable<DailyStats> days)
     {

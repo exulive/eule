@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using Eule.App.Interop;
 using Eule.App.Theme;
 using Eule.Core.Engine;
+using Eule.Core.Localization;
 using Forms = System.Windows.Forms;
 
 namespace Eule.App.Views;
@@ -46,7 +47,11 @@ public partial class BreakWindow : Window
         StartButton.Click += (_, _) => host.Do(e => e.StartWork());
 
         holdTimer.Tick += (_, _) => UpdateHold();
-        breathTimer.Tick += (_, _) => { breathingIn = !breathingIn; BreathText.Text = breathingIn ? "nefes al" : "ver"; };
+        breathTimer.Tick += (_, _) =>
+        {
+            breathingIn = !breathingIn;
+            BreathText.Text = L.T(breathingIn ? "break.breatheIn" : "break.breatheOut");
+        };
         exerciseTimer.Tick += (_, _) => ShowExercise(exerciseIndex + 1);
         PreviewKeyDown += OnKeyDown;
         PreviewKeyUp += OnKeyUp;
@@ -103,17 +108,17 @@ public partial class BreakWindow : Window
 
         if (dimming)
         {
-            Heading.Text = "Ekran kararıyor";
-            Sub.Text = "Kaydını bitir. Birazdan mola başlıyor.";
+            Heading.Text = L.T("break.dimming");
+            Sub.Text = L.T("break.dimmingSub");
         }
         else if (finished)
         {
-            Heading.Text = "Mola bitti";
-            Sub.Text = "Hazır olduğunda devam edelim.";
+            Heading.Text = L.T("break.finished");
+            Sub.Text = L.T("break.finishedSub");
         }
         else
         {
-            Heading.Text = strict ? "Şimdi mola zamanı" : "Kalkma zamanı";
+            Heading.Text = L.T(strict ? "break.titleStrict" : "break.title");
         }
         Sub.Visibility = dimming || finished ? Visibility.Visible : Visibility.Collapsed;
         ExerciseCard.Visibility = dimming || finished ? Visibility.Collapsed : Visibility.Visible;
@@ -121,7 +126,7 @@ public partial class BreakWindow : Window
         Time.Visibility = finished ? Visibility.Collapsed : Visibility.Visible;
         Time.Text = Present.Clock(e.BreakRemaining);
 
-        SnoozeButton.Content = $"{e.Settings.SnoozeMinutes} dk ertele";
+        SnoozeButton.Content = L.F("break.snooze", e.Settings.SnoozeMinutes);
         SnoozeButton.Visibility = !finished && e.CanSnooze ? Visibility.Visible : Visibility.Collapsed;
         SkipButton.Visibility = !finished && e.CanSkip ? Visibility.Visible : Visibility.Collapsed;
         StartButton.Visibility = finished ? Visibility.Visible : Visibility.Collapsed;

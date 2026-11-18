@@ -91,6 +91,7 @@ public sealed class AppHost : IDisposable
         if (!SettingsStore.Exists)
         {
             FirstRun = true;
+            Settings.Language = Core.Localization.L.FromSystem();
             SettingsStore.Save(Settings);
         }
 

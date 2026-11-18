@@ -6,6 +6,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using Eule.Core.Insights;
+using Eule.Core.Localization;
 using Eule.Core.Storage;
 using Serilog;
 
@@ -63,11 +64,11 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
     {
         Tiles.Children.Clear();
         var today = r.Recent[^1];
-        string weekDelta = r.LastWeekSit > 0 ? $"geçen hafta {Words.Duration(r.LastWeekSit)}" : "geçen hafta veri yok";
-        Tiles.Children.Add(Tile(Words.Duration(r.ThisWeekSit), "bu hafta oturma", weekDelta, first: true));
-        Tiles.Children.Add(Tile(r.ThisWeekBreaks.ToString(), "bu hafta mola", $"bugün {today.AllBreaks} / {r.Goal}"));
-        Tiles.Children.Add(Tile(r.Streak.Days == 0 ? "—" : $"{r.Streak.Days} gün", "seri",
-            r.Streak.TodayMet ? "bugünkü hedef tamam" : $"hedef: günde {r.Goal} mola"));
+        string weekDelta = r.LastWeekSit > 0 ? L.F("stats.lastWeek", Words.Duration(r.LastWeekSit)) : L.T("stats.lastWeekNone");
+        Tiles.Children.Add(Tile(Words.Duration(r.ThisWeekSit), L.T("stats.weekSit"), weekDelta, first: true));
+        Tiles.Children.Add(Tile(r.ThisWeekBreaks.ToString(), L.T("stats.weekBreaks"), L.F("stats.todayGoal", today.AllBreaks, r.Goal)));
+        Tiles.Children.Add(Tile(r.Streak.Days == 0 ? "—" : L.F("unit.days", r.Streak.Days), L.T("stats.streak"),
+            r.Streak.TodayMet ? L.T("stats.goalMet") : L.F("stats.goal", r.Goal)));
     }
 
     static Border Tile(string value, string label, string sub, bool first = false)
@@ -120,7 +121,7 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
             double y = 1 - (double)h / top;
             var line = new Rectangle { Height = 1, Fill = B("Eule.Line"), VerticalAlignment = VerticalAlignment.Top };
             grid.Children.Add(line);
-            var label = Text(h == 0 ? "" : $"{h} sa", 10.5, "Eule.Muted"); // the baseline needs no label
+            var label = Text(h == 0 ? "" : L.F("unit.hour", h), 10.5, "Eule.Muted"); // the baseline needs no label
             label.VerticalAlignment = VerticalAlignment.Top;
             labels.Children.Add(label);
             void Place(object? s, SizeChangedEventArgs? e)
@@ -154,14 +155,14 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
             };
             var cell = new Grid { Background = Brushes.Transparent, Children = { bar } };
             cell.SizeChanged += (_, e) => bar.Height = d.SitSeconds == 0 ? 0 : Math.Max(3, frac * e.NewSize.Height);
-            cell.ToolTip = $"{Words.Date(d.Date)} · {Words.Duration(d.SitSeconds)} oturma · {d.AllBreaks} mola" +
-                           (d.LongestStretch > 0 ? $" · en uzun {Words.Duration(d.LongestStretch)}" : "") +
-                           result switch { DayResult.Met => " · hedef tuttu", DayResult.Missed => " · hedef tutmadı", _ => "" };
+            cell.ToolTip = L.F("stats.barTip", Words.Date(d.Date), Words.Duration(d.SitSeconds), d.AllBreaks) +
+                           (d.LongestStretch > 0 ? L.F("stats.barLongest", Words.Duration(d.LongestStretch)) : "") +
+                           result switch { DayResult.Met => L.T("stats.barMet"), DayResult.Missed => L.T("stats.barMissed"), _ => "" };
             cell.MouseEnter += (_, _) => bar.Opacity = 0.65;
             cell.MouseLeave += (_, _) => bar.Opacity = isToday ? 1 : 0.85;
             columns.Children.Add(cell);
 
-            var dayLabel = Text(isToday ? "bugün" : Words.DayShort[Words.WeekdayIndex(d.Date)], 10.5,
+            var dayLabel = Text(isToday ? L.T("stats.today") : Words.DayShort[Words.WeekdayIndex(d.Date)], 10.5,
                 isToday ? "Eule.Ink" : "Eule.Muted", isToday ? FontWeights.SemiBold : null);
             dayLabel.HorizontalAlignment = HorizontalAlignment.Center;
             var dot = new Ellipse { Width = 7, Height = 7, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
@@ -220,7 +221,7 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
                     Margin = new Thickness(1),
                     CornerRadius = new CornerRadius(3),
                     Background = new SolidColorBrush(Lerp(low, high, v / max)),
-                    ToolTip = $"{Words.DayName[d]} {h:00}:00–{(h + 1) % 24:00}:00 · ortalama {Math.Round(v)} dk",
+                    ToolTip = L.F("stats.cellTip", Words.DayName[d], h, (h + 1) % 24, Math.Round(v)),
                 };
                 Grid.SetRow(cell, d + 1);
                 Grid.SetColumn(cell, h - from + 1);
@@ -229,7 +230,7 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         HeatLegend.Children.Clear();
-        HeatLegend.Children.Add(new TextBlock { Text = "az", FontSize = 11, Foreground = B("Eule.Muted"), Margin = new Thickness(0, 0, 6, 0) });
+        HeatLegend.Children.Add(new TextBlock { Text = L.T("stats.less"), FontSize = 11, Foreground = B("Eule.Muted"), Margin = new Thickness(0, 0, 6, 0) });
         foreach (double t in new[] { 0, 0.25, 0.5, 0.75, 1.0 })
             HeatLegend.Children.Add(new Border
             {
@@ -238,7 +239,7 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
             });
         HeatLegend.Children.Add(new TextBlock
         {
-            Text = $"çok ({Math.Round(max)} dk)", FontSize = 11, Foreground = B("Eule.Muted"), Margin = new Thickness(6, 0, 0, 0),
+            Text = L.F("stats.more", Math.Round(max)), FontSize = 11, Foreground = B("Eule.Muted"), Margin = new Thickness(6, 0, 0, 0),
         });
     }
 
@@ -258,7 +259,7 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
         InsightList.Children.Clear();
         var items = r.Insights.Count > 0
             ? r.Insights
-            : ["Birkaç gün kullandıktan sonra burada sana özel gözlemler göreceksin."];
+            : [L.T("stats.insightsEmpty")];
         foreach (string s in items)
         {
             var row = new Border { Style = (Style)FindResource("Eule.Row"), Padding = new Thickness(16, 12, 16, 12) };
@@ -277,8 +278,8 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
     {
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
-            FileName = $"eule-istatistik-{DateTime.Today:yyyy-MM-dd}.csv",
-            Filter = "CSV dosyası (*.csv)|*.csv",
+            FileName = L.F("stats.csvName", DateTime.Today),
+            Filter = L.T("stats.csvFilter"),
             DefaultExt = ".csv",
         };
         if (dlg.ShowDialog(this) != true) return;
@@ -286,13 +287,13 @@ public partial class StatsWindow : Wpf.Ui.Controls.FluentWindow
         {
             host.Stats.Flush();
             CsvExport.Write(dlg.FileName, host.Database);
-            ExportText.Text = $"Kaydedildi: {System.IO.Path.GetFileName(dlg.FileName)}";
+            ExportText.Text = L.F("stats.exported", System.IO.Path.GetFileName(dlg.FileName));
             Log.Information("İstatistik dışa aktarıldı: {Path}", dlg.FileName);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Warning(ex, "Dışa aktarılamadı");
-            ExportText.Text = "Dosya yazılamadı. Başka bir yer dene.";
+            ExportText.Text = L.T("stats.exportFailed");
         }
     }
 }

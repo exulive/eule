@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using Eule.App.Theme;
 using Eule.Core.Engine;
+using Eule.Core.Localization;
 
 namespace Eule.App.Views;
 
@@ -49,20 +50,20 @@ public partial class WidgetWindow : Window
         Time.Text = Present.Time(e);
 
         PauseButton.Content = e.Phase == Phase.Paused ? "" : "";
-        PauseButton.ToolTip = e.Phase == Phase.Paused ? "Devam et" : "Duraklat";
+        PauseButton.ToolTip = L.T(e.Phase == Phase.Paused ? "widget.resume" : "widget.pause");
         PauseButton.Visibility = e.Phase is Phase.Working or Phase.Paused ? Visibility.Visible : Visibility.Collapsed;
 
         bool due = e.Phase == Phase.BreakDue;
         bool finished = e.Phase == Phase.BreakFinished;
         bool deferred = e.Phase == Phase.Deferred;
         Prompt.Visibility = due || finished || deferred ? Visibility.Visible : Visibility.Collapsed;
-        PromptText.Text = due ? "Biraz kalkıp dolaşmaya ne dersin?"
-            : finished ? "Mola bitti. Hazır olduğunda devam edelim."
-            : deferred ? "Meşgul görünüyorsun, bitince hatırlatacağım."
+        PromptText.Text = due ? L.T("widget.prompt.due")
+            : finished ? L.T("widget.prompt.finished")
+            : deferred ? L.T("widget.prompt.deferred")
             : "";
         AcceptButton.Visibility = due || deferred ? Visibility.Visible : Visibility.Collapsed;
         SnoozeButton.Visibility = (due || deferred) && e.CanSnooze ? Visibility.Visible : Visibility.Collapsed;
-        SnoozeButton.Content = $"{e.Settings.SnoozeMinutes} dk sonra";
+        SnoozeButton.Content = L.F("widget.snooze", e.Settings.SnoozeMinutes);
         SkipButton.Visibility = due && e.CanSkip ? Visibility.Visible : Visibility.Collapsed;
         StartButton.Visibility = finished ? Visibility.Visible : Visibility.Collapsed;
     }

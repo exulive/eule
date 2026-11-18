@@ -39,7 +39,7 @@ sealed class EyeBreakWindow : Window
 
         var text = new TextBlock
         {
-            Text = "Gözlerini dinlendir: uzaktaki bir noktaya bak",
+            Text = Eule.Core.Localization.L.T("eye.text"),
             FontSize = 13.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0),
         };
         text.SetResourceReference(TextBlock.ForegroundProperty, "Eule.Ink");

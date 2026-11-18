@@ -1,0 +1,96 @@
+<ui:FluentWindow x:Class="Eule.App.Views.WelcomeWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:c="clr-namespace:Eule.App.Controls"
+                 xmlns:l="clr-namespace:Eule.App"
+                 Title="Eule" Width="480" Height="640" ResizeMode="NoResize"
+                 WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
+                 WindowCornerPreference="Round" FontFamily="{StaticResource Eule.Font}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Title="Eule" ShowMaximize="False" ShowMinimize="False" />
+
+        <Grid Grid.Row="1" Margin="36,8,36,0">
+            <!-- Step 1: hello -->
+            <StackPanel x:Name="Step1" VerticalAlignment="Center">
+                <c:OwlView x:Name="Owl" Width="132" Height="132" Progress="0.75" />
+                <TextBlock Text="{l:T welcome.title}" FontSize="28" FontWeight="Light" Margin="0,28,0,0"
+                           HorizontalAlignment="Center" Foreground="{DynamicResource Eule.Ink}" />
+                <TextBlock Text="{l:T welcome.text}" FontSize="14.5" Margin="0,12,0,0" TextAlignment="Center"
+                           TextWrapping="Wrap" LineHeight="22" Foreground="{DynamicResource Eule.Muted}" />
+                <TextBlock Text="{l:T welcome.privacy}" FontSize="12" Margin="0,22,0,0" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource Eule.Muted}" />
+            </StackPanel>
+
+            <!-- Step 2: rhythm -->
+            <StackPanel x:Name="Step2" VerticalAlignment="Center" Visibility="Collapsed">
+                <TextBlock Text="{l:T welcome.rhythmTitle}" FontSize="24" FontWeight="Light" Foreground="{DynamicResource Eule.Ink}" />
+                <TextBlock Text="{l:T welcome.rhythmText}" FontSize="13" Margin="0,6,0,22" Foreground="{DynamicResource Eule.Muted}" />
+                <StackPanel x:Name="Rhythms">
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Rhythm" Tag="30,5">
+                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.preset.30}" />
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Rhythm" Tag="60,10">
+                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.preset.60}" />
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Rhythm" Tag="25,5">
+                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.preset.25}" />
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Rhythm" Tag="45,15">
+                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="45 · 15" />
+                    </RadioButton>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Step 3: reminder style -->
+            <StackPanel x:Name="Step3" VerticalAlignment="Center" Visibility="Collapsed">
+                <TextBlock Text="{l:T welcome.levelTitle}" FontSize="24" FontWeight="Light" Margin="0,0,0,18" Foreground="{DynamicResource Eule.Ink}" />
+                <StackPanel x:Name="Levels">
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Gentle">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.gentle}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.gentleDesc}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Balanced">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.balanced}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.balancedDesc}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Firm">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.firm}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.firmDesc}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Strict">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.strict}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.strictDesc}" />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+                <DockPanel Margin="2,10,0,0">
+                    <ui:ToggleSwitch x:Name="StartupSwitch" DockPanel.Dock="Right" IsChecked="True" />
+                    <TextBlock Text="{l:T welcome.startup}" FontSize="13.5" VerticalAlignment="Center" Foreground="{DynamicResource Eule.Ink}" />
+                </DockPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Footer: progress dots and navigation -->
+        <DockPanel Grid.Row="2" Margin="36,16,36,28">
+            <StackPanel x:Name="Dots" Orientation="Horizontal" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BackButton" Style="{StaticResource Eule.Pill}" Content="{l:T welcome.back}" FontSize="13.5" Padding="18,8" />
+                <Button x:Name="NextButton" Style="{StaticResource Eule.PillPrimary}" Content="{l:T welcome.next}" FontSize="13.5" Padding="22,8" Margin="0,0,0,6" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</ui:FluentWindow>

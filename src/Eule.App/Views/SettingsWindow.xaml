@@ -3,7 +3,8 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  xmlns:c="clr-namespace:Eule.App.Controls"
-                 Title="Eule · Ayarlar" Width="560" Height="780" MinWidth="460" MinHeight="420"
+                 xmlns:l="clr-namespace:Eule.App"
+                 Title="{l:T set.title}" Width="560" Height="780" MinWidth="460" MinHeight="420"
                  WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
                  WindowCornerPreference="Round" FontFamily="{StaticResource Eule.Font}">
     <Grid>
@@ -12,7 +13,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Title="Ayarlar" ShowMaximize="False" />
+        <ui:TitleBar Title="{l:T set.title}" ShowMaximize="False" />
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="28,4,28,28">
             <StackPanel>
@@ -21,19 +22,19 @@
                 <DockPanel Margin="0,8,0,0">
                     <c:OwlView x:Name="Owl" Width="58" Height="58" DockPanel.Dock="Left" />
                     <ui:Button x:Name="StatsButton" DockPanel.Dock="Right" VerticalAlignment="Center" Appearance="Secondary"
-                               Content="İstatistik" />
+                               Content="{l:T set.stats}" />
                     <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="Eule" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Eule.Ink}" />
-                        <TextBlock x:Name="TodayText" FontSize="12.5" Foreground="{DynamicResource Eule.Muted}" />
+                        <TextBlock x:Name="TodayText" FontSize="12.5" TextWrapping="Wrap" Foreground="{DynamicResource Eule.Muted}" />
                     </StackPanel>
                 </DockPanel>
 
                 <!-- Rhythm -->
-                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="Ritim" />
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.rhythm}" />
                 <WrapPanel x:Name="Presets" Margin="0,0,0,8">
-                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="30,5" Content="30 dk · 5 dk mola" />
-                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="60,10" Content="Saatte bir · 10 dk" />
-                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="25,5" Content="Pomodoro 25 · 5" />
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="30,5" Content="{l:T set.preset.30}" />
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="60,10" Content="{l:T set.preset.60}" />
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="25,5" Content="{l:T set.preset.25}" />
                     <ToggleButton Style="{StaticResource Eule.Chip}" Tag="45,15" Content="45 · 15" />
                     <ToggleButton Style="{StaticResource Eule.Chip}" Tag="50,10" Content="50 · 10" />
                 </WrapPanel>
@@ -41,9 +42,9 @@
                     <DockPanel>
                         <ui:NumberBox x:Name="WorkBox" DockPanel.Dock="Right" Width="132" Minimum="1" Maximum="240"
                                       SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Oturma süresi" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Kaç dakikada bir kalkmak istersin?" />
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.work}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.workDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -51,9 +52,9 @@
                     <DockPanel>
                         <ui:NumberBox x:Name="BreakBox" DockPanel.Dock="Right" Width="132" Minimum="1" Maximum="60"
                                       SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Mola süresi" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Dakika" />
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.break}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.minutes}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -62,37 +63,37 @@
                         <ui:NumberBox x:Name="GoalBox" DockPanel.Dock="Right" Width="132" Minimum="1" Maximum="20"
                                       SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Günlük mola hedefi" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Hedefe ulaştığın günler seriye eklenir. Bilgisayar başında olmadığın günler seriyi bozmaz." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.goal}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.goalDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
 
                 <!-- Reminder level -->
-                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="Hatırlatma biçimi" />
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.level}" />
                 <StackPanel x:Name="Levels">
                     <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Gentle">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Nazik" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Eule sadece köşeden seslenir, cevap verene kadar arada bir hatırlatır." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.gentle}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.gentleDesc}" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Balanced">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Dengeli" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Önce köşeden sorar; bir dakika içinde cevap gelmezse ya da erteleme hakkın biterse mola ekranı açılır." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.balanced}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.balancedDesc}" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Firm">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Kararlı" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Mola ekranı hemen açılır. Erteleyebilir ya da atlayabilirsin." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.firm}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.firmDesc}" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Style="{StaticResource Eule.ChoiceCard}" GroupName="Level" Tag="Strict">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Zorunlu" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Ekran kararır ve mola bitene kadar açılmaz. Erteleme ya da atlama yok." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.strict}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.strictDesc}" />
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
@@ -101,8 +102,8 @@
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="EmergencySwitch" DockPanel.Dock="Right" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Acil durum çıkışı" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Zorunlu molada Shift'i 10 saniye basılı tutarak çıkabilirsin. İstatistiğe 'bozuldu' olarak yazılır." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.emergency}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.emergencyDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -110,13 +111,13 @@
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <ui:NumberBox x:Name="SnoozeBox" Width="112" Minimum="1" Maximum="60" SmallChange="1"
-                                          MaxDecimalPlaces="0" ClearButtonEnabled="False" ToolTip="Erteleme süresi (dk)" />
+                                          MaxDecimalPlaces="0" ClearButtonEnabled="False" ToolTip="{l:T set.snoozeTip}" />
                             <ui:NumberBox x:Name="MaxSnoozeBox" Width="112" Margin="8,0,0,0" Minimum="0" Maximum="10" SmallChange="1"
-                                          MaxDecimalPlaces="0" ClearButtonEnabled="False" ToolTip="Arka arkaya en fazla erteleme" />
+                                          MaxDecimalPlaces="0" ClearButtonEnabled="False" ToolTip="{l:T set.maxSnoozeTip}" />
                         </StackPanel>
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Erteleme" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Kaç dakika · en fazla kaç kez" />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.snooze}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.snoozeDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -125,8 +126,8 @@
                         <ui:NumberBox x:Name="WarnBox" DockPanel.Dock="Right" Width="132" Minimum="0" Maximum="600"
                                       SmallChange="15" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Önceden haber ver" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Saniye. Eule molaya bu kadar kala uyanıp sana bakar. 0 = kapalı." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.warn}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.warnDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -134,20 +135,20 @@
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="BusySwitch" DockPanel.Dock="Right" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Meşgulken bekle" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Sunum, görüşme ya da tam ekran uygulama sırasında mola, bitene kadar bekler." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.busy}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.busyDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
 
                 <!-- Behaviour -->
-                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="Davranış" />
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.behaviour}" />
                 <Border Style="{StaticResource Eule.Row}">
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="AwaySwitch" DockPanel.Dock="Right" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Masadan kalkmak mola sayılsın" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Mola süresi kadar bilgisayara dokunmazsan sayaç baştan başlar." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.away}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.awayDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -155,8 +156,8 @@
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="AutoRestartSwitch" DockPanel.Dock="Right" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Mola bitince kendiliğinden devam et" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Kapalıysa sayaç sen 'Devam et' diyene kadar bekler." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.autoRestart}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.autoRestartDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -164,8 +165,8 @@
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="EyeSwitch" DockPanel.Dock="Right" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Göz molası (20-20-20)" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="20 dakikada bir, ekranın üstünde 20 saniyelik küçük bir hatırlatma. Tıklamaları engellemez." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.eye}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.eyeDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -173,42 +174,42 @@
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="CoverSwitch" DockPanel.Dock="Right" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Molada tüm ekranları kapla" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Birden fazla monitörün varsa. Zorunlu molada her zaman açıktır." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.cover}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.coverDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
                 <Border Style="{StaticResource Eule.Row}">
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="SoundSwitch" DockPanel.Dock="Right" />
-                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Ses" VerticalAlignment="Center" />
+                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.sound}" VerticalAlignment="Center" />
                     </DockPanel>
                 </Border>
                 <Border Style="{StaticResource Eule.Row}">
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="WidgetSwitch" DockPanel.Dock="Right" />
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Eule köşede dursun" />
-                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Kapalıyken yalnızca görev çubuğu simgesi kalır." />
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.widget}" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.widgetDesc}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
                 <Border Style="{StaticResource Eule.Row}">
                     <DockPanel>
                         <ui:ToggleSwitch x:Name="StartupSwitch" DockPanel.Dock="Right" />
-                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Windows açılınca başlat" VerticalAlignment="Center" />
+                        <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.startup}" VerticalAlignment="Center" />
                     </DockPanel>
                 </Border>
 
                 <!-- Work hours -->
-                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="Mesai saatleri" />
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.hours}" />
                 <Border Style="{StaticResource Eule.Row}">
                     <StackPanel>
                         <DockPanel>
                             <ui:ToggleSwitch x:Name="HoursSwitch" DockPanel.Dock="Right" />
                             <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Sadece mesai saatlerinde hatırlat" />
-                                <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Dışında Eule sessizce uyur." />
+                                <TextBlock Style="{StaticResource Eule.RowTitle}" Text="{l:T set.hoursOnly}" />
+                                <TextBlock Style="{StaticResource Eule.RowDesc}" Text="{l:T set.hoursDesc}" />
                             </StackPanel>
                         </DockPanel>
                         <StackPanel x:Name="HoursPanel" Margin="0,14,0,0">
@@ -217,33 +218,44 @@
                                 <TextBlock Text="–" Margin="10,0" VerticalAlignment="Center" Foreground="{DynamicResource Eule.Muted}" />
                                 <ui:TextBox x:Name="HoursEnd" Width="92" MaxLength="5" ClearButtonEnabled="False" />
                             </StackPanel>
-                            <WrapPanel x:Name="Days" Margin="0,12,0,0">
-                                <ToggleButton Style="{StaticResource Eule.Chip}" Tag="1" Content="Pzt" />
-                                <ToggleButton Style="{StaticResource Eule.Chip}" Tag="2" Content="Sal" />
-                                <ToggleButton Style="{StaticResource Eule.Chip}" Tag="3" Content="Çar" />
-                                <ToggleButton Style="{StaticResource Eule.Chip}" Tag="4" Content="Per" />
-                                <ToggleButton Style="{StaticResource Eule.Chip}" Tag="5" Content="Cum" />
-                                <ToggleButton Style="{StaticResource Eule.Chip}" Tag="6" Content="Cmt" />
-                                <ToggleButton Style="{StaticResource Eule.Chip}" Tag="0" Content="Paz" />
-                            </WrapPanel>
+                            <WrapPanel x:Name="Days" Margin="0,12,0,0" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- Appearance -->
-                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="Görünüm" />
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.look}" />
                 <WrapPanel x:Name="Themes">
-                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="System" Content="Sistem" />
-                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="Light" Content="Açık" />
-                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="Dark" Content="Koyu" />
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="System" Content="{l:T set.theme.system}" />
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="Light" Content="{l:T set.theme.light}" />
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="Dark" Content="{l:T set.theme.dark}" />
                 </WrapPanel>
-
-                <!-- Footer -->
-                <DockPanel Margin="2,28,0,0">
-                    <ui:Button x:Name="OpenFolder" DockPanel.Dock="Right" Appearance="Transparent" Content="Veri klasörü" />
-                    <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Eule.Muted}" TextWrapping="Wrap"
-                               Text="Eule ücretsizdir. Verilerin yalnızca bu bilgisayarda kalır, hiçbir yere gönderilmez." />
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.language}" Margin="2,16,0,10" />
+                <WrapPanel x:Name="Languages">
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="tr" Content="Türkçe" />
+                    <ToggleButton Style="{StaticResource Eule.Chip}" Tag="en" Content="English" />
+                </WrapPanel>
+                <DockPanel x:Name="RestartRow" Visibility="Collapsed" Margin="2,4,0,0">
+                    <ui:Button x:Name="RestartButton" DockPanel.Dock="Right" Appearance="Primary" Content="{l:T set.restart}" />
+                    <TextBlock VerticalAlignment="Center" FontSize="12.5" Foreground="{DynamicResource Eule.Muted}"
+                               Text="{l:T set.languageRestart}" TextWrapping="Wrap" />
                 </DockPanel>
+
+                <!-- About -->
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.about}" />
+                <Border Style="{StaticResource Eule.Row}">
+                    <StackPanel>
+                        <DockPanel>
+                            <ui:Button x:Name="UpdateButton" DockPanel.Dock="Right" Appearance="Secondary" Content="{l:T set.checkUpdate}" />
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock x:Name="VersionText" Style="{StaticResource Eule.RowTitle}" />
+                                <TextBlock x:Name="UpdateText" Style="{StaticResource Eule.RowDesc}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Eule.RowDesc}" Margin="0,12,0,0" Text="{l:T set.privacy}" />
+                    </StackPanel>
+                </Border>
+                <ui:Button x:Name="OpenFolder" Margin="0,4,0,0" HorizontalAlignment="Left" Appearance="Transparent" Content="{l:T set.folder}" />
             </StackPanel>
         </ScrollViewer>
     </Grid>

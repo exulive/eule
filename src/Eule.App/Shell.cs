@@ -6,6 +6,7 @@ using System.Windows.Media;
 using Eule.App.Theme;
 using Eule.App.Views;
 using Eule.Core.Engine;
+using Eule.Core.Localization;
 using Microsoft.Win32;
 using Serilog;
 
@@ -35,7 +36,15 @@ public sealed class Shell : IDisposable
     };
     MenuItem miStatus = null!, miToday = null!, miBreak = null!, miPause = null!, miReset = null!, miWidget = null!;
 
-    public Shell(AppHost host) => this.host = host;
+    readonly UpdateService updates;
+    readonly System.Windows.Threading.DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    WelcomeWindow? welcomeWindow;
+
+    public Shell(AppHost host, UpdateService updates)
+    {
+        this.host = host;
+        this.updates = updates;
+    }
 
     public void Start()
     {
@@ -59,9 +68,24 @@ public sealed class Shell : IDisposable
         StartupRegistration.Apply(host.Settings.StartWithWindows);
         Refresh();
 
-        if (host.FirstRun) OpenSettings();
+        // Quiet background update: first check a minute after start, then once a day.
+        if (updates.CanUpdate)
+        {
+            updateTimer.Tick += async (_, _) =>
+            {
+                updateTimer.Interval = TimeSpan.FromHours(24);
+                var (info, _) = await updates.CheckAndDownloadAsync();
+                if (info == null) return;
+                updates.ApplyOnExit(info);
+                updateTimer.Stop();
+                tray.Notify(L.T("note.updateTitle"), L.T("note.updateText"));
+            };
+            updateTimer.Start();
+        }
+
+        if (host.FirstRun) OpenWelcome();
         else if (!host.Settings.ShowWidget)
-            tray.Notify("Eule burada", "Simgeye tıklayarak Eule'yi köşede gösterebilirsin.");
+            tray.Notify(L.T("note.hereTitle"), L.T("note.hereText"));
     }
 
     // ------------------------------------------------------------------ state → surfaces
@@ -83,10 +107,10 @@ public sealed class Shell : IDisposable
         miStatus.Header = status;
         var t = host.Stats.Today;
         var streak = host.Streak;
-        miToday.Header = $"Bugün {Present.Duration(t.SitSeconds)} · {t.AllBreaks}/{streak.Goal} mola" +
-                         (streak.Days > 0 ? $" · {streak.Days} gün seri" : "");
+        miToday.Header = L.F("menu.today", Present.Duration(t.SitSeconds), t.AllBreaks, streak.Goal) +
+                         (streak.Days > 0 ? L.F("menu.streak", streak.Days) : "");
         miBreak.IsEnabled = e.Phase is Phase.Working or Phase.Paused or Phase.Deferred or Phase.BreakDue;
-        miPause.Header = e.Phase == Phase.Paused ? "Devam et" : "Duraklat";
+        miPause.Header = L.T(e.Phase == Phase.Paused ? "menu.resume" : "menu.pause");
         miPause.IsEnabled = e.Phase is Phase.Working or Phase.Paused or Phase.Deferred or Phase.BreakDue or Phase.Away;
         miReset.IsEnabled = e.Phase is not Phase.Break;
         miWidget.IsChecked = widget.IsVisible;
@@ -154,8 +178,8 @@ public sealed class Shell : IDisposable
         var streak = host.Streak;
         if (!streak.TodayMet || goalCelebrated == host.Stats.Today.Date) return;
         goalCelebrated = host.Stats.Today.Date;
-        tray.Notify("Bugünkü hedef tamam",
-            streak.Days > 1 ? $"{streak.Days} gündür hedeftesin. Eule seninle gurur duyuyor." : "Eule seninle gurur duyuyor.");
+        tray.Notify(L.T("note.goalTitle"),
+            streak.Days > 1 ? L.F("note.goalStreak", streak.Days) : L.T("note.goalText"));
     }
 
     void OnEngineEvent(EngineEvent ev)
@@ -170,7 +194,7 @@ public sealed class Shell : IDisposable
                 if (!due.Repeat) Play(SystemSounds.Asterisk);
                 break;
             case WarningRaised w when !widget.IsVisible:
-                tray.Notify("Mola yaklaşıyor", $"{Math.Max(1, w.SecondsLeft / 60)} dakika sonra kalkma zamanı.");
+                tray.Notify(L.T("note.warnTitle"), L.F("note.warnText", Math.Max(1, w.SecondsLeft / 60)));
                 break;
             case BreakEnded { Reason: BreakEndReason.Completed }:
                 Play(SystemSounds.Asterisk);
@@ -230,11 +254,25 @@ public sealed class Shell : IDisposable
             settingsWindow.Activate();
             return;
         }
-        settingsWindow = new SettingsWindow(host);
+        settingsWindow = new SettingsWindow(host, updates);
         settingsWindow.OpenStatsRequested += OpenStats;
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show();
         settingsWindow.Activate();
+    }
+
+    public void OpenWelcome()
+    {
+        if (welcomeWindow != null) { welcomeWindow.Activate(); return; }
+        welcomeWindow = new WelcomeWindow(host);
+        welcomeWindow.Closed += (_, _) =>
+        {
+            welcomeWindow = null;
+            ShowWidgetWindow(host.Settings.ShowWidget);
+            Refresh();
+        };
+        welcomeWindow.Show();
+        welcomeWindow.Activate();
     }
 
     StatsWindow? statsWindow;
@@ -276,13 +314,13 @@ public sealed class Shell : IDisposable
 
         miStatus = new MenuItem { Header = "", IsEnabled = false, FontWeight = FontWeights.SemiBold };
         miToday = new MenuItem { Header = "", IsEnabled = false };
-        miBreak = Item("Şimdi mola ver", "", () => host.Do(e => e.StartBreakNow()));
-        miPause = Item("Duraklat", "", () => host.Do(e => e.TogglePause()));
-        miReset = Item("Sayacı sıfırla", "", () => host.Do(e => e.Reset()));
-        miWidget = Item("Köşede göster", "", () => SetWidgetVisible(!widget.IsVisible));
-        var miStats = Item("İstatistik", "", OpenStats);
-        var miSettings = Item("Ayarlar", "", OpenSettings);
-        var miExit = Item("Çıkış", "", Exit);
+        miBreak = Item(L.T("menu.breakNow"), "", () => host.Do(e => e.StartBreakNow()));
+        miPause = Item(L.T("menu.pause"), "", () => host.Do(e => e.TogglePause()));
+        miReset = Item(L.T("menu.reset"), "", () => host.Do(e => e.Reset()));
+        miWidget = Item(L.T("menu.widget"), "", () => SetWidgetVisible(!widget.IsVisible));
+        var miStats = Item(L.T("menu.stats"), "", OpenStats);
+        var miSettings = Item(L.T("menu.settings"), "", OpenSettings);
+        var miExit = Item(L.T("menu.exit"), "", Exit);
 
         menu.Items.Add(miStatus);
         menu.Items.Add(miToday);
@@ -312,6 +350,7 @@ public sealed class Shell : IDisposable
 
     public void Dispose()
     {
+        updateTimer.Stop();
         tray?.Dispose();
         CloseBreakScreens();
     }

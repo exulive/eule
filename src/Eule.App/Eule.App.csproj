@@ -7,7 +7,13 @@
   <ItemGroup>
     <PackageReference Include="Serilog" Version="4.1.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\eule.ico" />
+    <None Include="Assets\eule.png" />
   </ItemGroup>
 
   <!-- WinForms is only used for the tray icon; keep its namespaces out of the global usings to avoid WPF name clashes. -->
@@ -25,6 +31,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\eule.ico</ApplicationIcon>
+    <StartupObject>Eule.App.Program</StartupObject>
     <!-- WFAC010 is a WinForms-startup hint; this is a WPF app that declares per-monitor DPI in its manifest. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <AssemblyName>Eule</AssemblyName>

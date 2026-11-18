@@ -1,7 +1,10 @@
-﻿using System.Threading;
+﻿using System.Diagnostics;
+using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using Eule.Core;
+using Eule.Core.Localization;
+using Eule.Core.Settings;
 using Serilog;
 
 namespace Eule.App;
@@ -31,37 +34,67 @@ public partial class App : Application
             a.SetObserved();
         };
 
+        // Language first, so even the very first message is in the right one.
+        var store = new SettingsStore(paths.SettingsFile);
+        L.Lang = store.Exists ? store.Load().Language : L.FromSystem();
+
+        int iconArg = Array.IndexOf(e.Args, "--export-icon");
+        if (iconArg >= 0 && iconArg + 1 < e.Args.Length)
+        {
+            new Theme.ThemeService().Apply(AppTheme.Light);
+            Interop.IconExporter.Export(e.Args[iconArg + 1]);
+            Shutdown();
+            return;
+        }
+
         singleInstance = new Mutex(true, "Eule_SingleInstance", out bool created);
         if (!created)
         {
-            MessageBox.Show("Eule zaten çalışıyor.", "Eule", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(L.T("app.running"), "Eule", MessageBoxButton.OK, MessageBoxImage.Information);
+            singleInstance.Dispose();
+            singleInstance = null;
             Shutdown();
             return;
         }
 
         base.OnStartup(e);
-        Log.Information("Eule başlıyor (sürüm {Version})", typeof(App).Assembly.GetName().Version);
+        Log.Information("Eule başlıyor (sürüm {Version}, dil {Lang})", UpdateService.CurrentVersion, L.Lang);
 
         host = new AppHost(paths) { SeedDemo = e.Args.Contains("--seed-demo") };
         host.Start();
-        shell = new Shell(host);
+        L.Lang = host.Settings.Language;
+        shell = new Shell(host, new UpdateService());
         shell.Start();
 
         // Developer shortcuts for trying the UI without waiting.
+        if (e.Args.Contains("--welcome")) shell.OpenWelcome();
         if (e.Args.Contains("--settings")) shell.OpenSettings();
         if (e.Args.Contains("--stats")) shell.OpenStats();
         if (e.Args.Contains("--break")) host.Do(x => x.StartBreakNow());
         if (e.Args.Contains("--eye")) shell.PreviewEyeBreak();
     }
 
+    /// <summary>Starts a fresh copy and closes this one (used after a language change).</summary>
+    public static void Restart()
+    {
+        var app = (App)Current;
+        Log.Information("Yeniden başlatılıyor");
+        try
+        {
+            app.singleInstance?.ReleaseMutex();
+        }
+        catch (ApplicationException) { }
+        app.singleInstance?.Dispose();
+        app.singleInstance = null;
+        if (Environment.ProcessPath is string exe) Process.Start(exe);
+        app.Shutdown();
+    }
+
     void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log.Error(e.Exception, "Arayüz hatası");
         e.Handled = true;
-        MessageBox.Show(
-            "Beklenmeyen bir hata oluştu, Eule çalışmaya devam ediyor.\n\nAyrıntılar günlük dosyasına yazıldı:\n" +
-            AppPaths.Default.LogDir,
-            "Eule", MessageBoxButton.OK, MessageBoxImage.Warning);
+        MessageBox.Show(L.F("app.error", AppPaths.Default.LogDir), "Eule", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     protected override void OnExit(ExitEventArgs e)

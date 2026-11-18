@@ -44,4 +44,25 @@ Sunum, görüşme veya tam ekran uygulama sırasında mola ertelenir (ayardan ka
 - [x] **Aşama 2** – Tasarım sistemi, baykuş karakteri, köşe sayacı, tepsi, ayarlar penceresi, açık/koyu tema, temel mola ekranı
 - [x] **Aşama 3** – Akıllı kesinti önleme (sunum, görüşme, tam ekran), köşe sayacının soru olarak çıkması, nefes ve hareket molası, tüm ekranlar, zorunlu mola (yavaş kararma, kısayol engeli, acil çıkış), 20-20-20, mesai saatleri, günlük hedef + seri
 - [x] **Aşama 4** – İstatistik ekranı (son 14 gün, haftanın ritmi ısı haritası, en uzun kesintisiz oturuş), çıkarımlar, CSV
-- [ ] **Aşama 5** – İlk açılış rehberi, TR/EN, simge, Velopack kurulum + otomatik güncelleme
+- [x] **Aşama 5** – İlk açılış rehberi, Türkçe/İngilizce, baykuş simgesi, Hakkında + gizlilik notu, Velopack kurulum + otomatik güncelleme altyapısı
+
+## Kurulum paketi
+
+```powershell
+dotnet tool install -g vpk --version 1.2.161   # Velopack paketiyle aynı sürüm
+.\pack.ps1 -Version 0.1.0
+```
+
+`releases\Eule-win-Setup.exe` tek tıkla kurar (yönetici izni gerekmez, `%LOCALAPPDATA%\Eule`).
+.NET 8 masaüstü çalışma zamanı yoksa kurulum onu da indirir. Kod imzası olmadığı için Windows
+SmartScreen ilk açılışta "Ek bilgi → Yine de çalıştır" ister.
+
+**Otomatik güncelleme** için: herkese açık bir GitHub deposu açın, adresini
+`src/Eule.App/UpdateService.cs` içindeki `RepoUrl` sabitine yazın ve her sürümden sonra
+`vpk upload github --repoUrl <adres> --publish --releaseName "Eule <sürüm>" --tag v<sürüm> --token <token>` çalıştırın.
+Kurulu kopyalar günde bir kez denetler, yeni sürümü indirir ve Eule kapanınca sessizce kurar.
+
+## Dil
+
+Bütün metinler `src/Eule.Core/Localization/L.cs` içinde, Türkçe ve İngilizce yan yana.
+XAML'de `{l:T anahtar}`, kodda `L.T("anahtar")` / `L.F("anahtar", ...)`. İlk açılışta Windows diline göre seçilir.

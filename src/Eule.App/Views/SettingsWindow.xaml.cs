@@ -6,6 +6,8 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using Eule.App.Theme;
 using Eule.Core;
+using Eule.Core.Insights;
+using Eule.Core.Localization;
 using Eule.Core.Settings;
 
 namespace Eule.App.Views;
@@ -14,15 +16,19 @@ namespace Eule.App.Views;
 public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 {
     readonly AppHost host;
+    readonly UpdateService updates;
     readonly DispatcherTimer saveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     bool loading;
+    Velopack.UpdateInfo? pendingUpdate;
 
     public event Action? OpenStatsRequested;
 
-    public SettingsWindow(AppHost host)
+    public SettingsWindow(AppHost host, UpdateService updates)
     {
         this.host = host;
+        this.updates = updates;
         InitializeComponent();
+        BuildDayChips();
 
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); Save(); };
 
@@ -37,11 +43,19 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         foreach (ToggleButton day in Days.Children)
             day.Click += (_, _) => Changed();
         foreach (ToggleButton t in Themes.Children)
-            t.Click += (_, _) => SelectTheme((string)t.Tag);
+            t.Click += (_, _) => Select(Themes, (string)t.Tag);
+        foreach (ToggleButton t in Languages.Children)
+            t.Click += (_, _) => Select(Languages, (string)t.Tag);
         HoursStart.LostFocus += (_, _) => Changed();
         HoursEnd.LostFocus += (_, _) => Changed();
         OpenFolder.Click += (_, _) => Process.Start("explorer.exe", AppPaths.Default.DataDir);
         StatsButton.Click += (_, _) => OpenStatsRequested?.Invoke();
+        RestartButton.Click += (_, _) => { saveTimer.Stop(); Save(); App.Restart(); };
+        UpdateButton.Click += async (_, _) => await OnUpdateClick();
+
+        VersionText.Text = L.F("set.version", UpdateService.CurrentVersion);
+        UpdateText.Text = updates.CanUpdate ? "" : L.T(updates.HasFeed ? "set.updateOff" : "set.updateNoFeed");
+        UpdateButton.Visibility = updates.CanUpdate ? Visibility.Visible : Visibility.Collapsed;
 
         host.Updated += RefreshHeader;
         Closed += (_, _) =>
@@ -52,6 +66,19 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
         SyncFromSettings();
         RefreshHeader();
+    }
+
+    void BuildDayChips()
+    {
+        var names = Words.DayShort;
+        for (int i = 0; i < 7; i++)
+        {
+            var dow = (DayOfWeek)((i + 1) % 7); // Monday first
+            Days.Children.Add(new ToggleButton
+            {
+                Style = (Style)FindResource("Eule.Chip"), Content = names[i], Tag = ((int)dow).ToString(),
+            });
+        }
     }
 
     /// <summary>Loads every control from the current settings (also used when the widget is toggled from the tray).</summary>
@@ -81,6 +108,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         foreach (ToggleButton day in Days.Children)
             day.IsChecked = s.WorkHours.Days.Contains((DayOfWeek)int.Parse((string)day.Tag));
         foreach (ToggleButton t in Themes.Children) t.IsChecked = (string)t.Tag == s.Theme.ToString();
+        foreach (ToggleButton t in Languages.Children) t.IsChecked = (string)t.Tag == s.Language;
         loading = false;
         UpdateDependentRows();
     }
@@ -93,8 +121,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         Owl.Mood = Present.Mood(e);
         var t = host.Stats.Today;
         var streak = host.Streak;
-        TodayText.Text = $"{Present.Status(e)} · bugün {Present.Duration(t.SitSeconds)} oturdun, {t.AllBreaks}/{streak.Goal} mola" +
-                         (streak.Days > 0 ? $" · {streak.Days} gün seri" : "");
+        TodayText.Text = L.F("set.today", Present.Status(e), Present.Duration(t.SitSeconds), t.AllBreaks, streak.Goal) +
+                         (streak.Days > 0 ? L.F("menu.streak", streak.Days) : "");
     }
 
     void ApplyPreset(string tag)
@@ -107,9 +135,9 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         Changed();
     }
 
-    void SelectTheme(string tag)
+    void Select(Panel group, string tag)
     {
-        foreach (ToggleButton t in Themes.Children) t.IsChecked = (string)t.Tag == tag;
+        foreach (ToggleButton t in group.Children) t.IsChecked = (string)t.Tag == tag;
         Changed();
     }
 
@@ -121,6 +149,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         saveTimer.Start();
     }
 
+    string? Selected(Panel group) => group.Children.OfType<ToggleButton>().FirstOrDefault(t => t.IsChecked == true)?.Tag as string;
+
     void UpdateDependentRows()
     {
         string? level = Levels.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as string;
@@ -128,6 +158,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         EmergencyRow.Visibility = strict ? Visibility.Visible : Visibility.Collapsed;
         SnoozeRow.Visibility = strict ? Visibility.Collapsed : Visibility.Visible;
         HoursPanel.Visibility = HoursSwitch.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        RestartRow.Visibility = Selected(Languages) is string lang && lang != L.Lang ? Visibility.Visible : Visibility.Collapsed;
 
         int work = (int)(WorkBox.Value ?? 0), brk = (int)(BreakBox.Value ?? 0);
         foreach (ToggleButton chip in Presets.Children)
@@ -159,8 +190,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         if (TryTime(HoursEnd.Text, out var end)) s.WorkHours.End = end;
         s.WorkHours.Days = Days.Children.OfType<ToggleButton>().Where(d => d.IsChecked == true)
             .Select(d => (DayOfWeek)int.Parse((string)d.Tag)).ToList();
-        if (Themes.Children.OfType<ToggleButton>().FirstOrDefault(t => t.IsChecked == true)?.Tag is string theme)
-            s.Theme = Enum.Parse<AppTheme>(theme);
+        if (Selected(Themes) is string theme) s.Theme = Enum.Parse<AppTheme>(theme);
+        if (Selected(Languages) is string lang) s.Language = lang;
 
         host.SaveSettings(s);
 
@@ -169,6 +200,27 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         HoursStart.Text = host.Settings.WorkHours.Start.ToString("HH:mm", CultureInfo.InvariantCulture);
         HoursEnd.Text = host.Settings.WorkHours.End.ToString("HH:mm", CultureInfo.InvariantCulture);
         loading = false;
+    }
+
+    async Task OnUpdateClick()
+    {
+        if (pendingUpdate != null)
+        {
+            updates.ApplyAndRestart(pendingUpdate);
+            return;
+        }
+        UpdateButton.IsEnabled = false;
+        UpdateText.Text = L.T("set.updateChecking");
+        var (info, error) = await updates.CheckAndDownloadAsync();
+        UpdateButton.IsEnabled = true;
+        if (error) UpdateText.Text = L.T("set.updateError");
+        else if (info == null) UpdateText.Text = L.T("set.updateNone");
+        else
+        {
+            pendingUpdate = info;
+            UpdateText.Text = L.F("set.updateFound", info.TargetFullRelease.Version);
+            UpdateButton.Content = L.T("set.updateInstall");
+        }
     }
 
     static bool TryTime(string text, out TimeOnly time) =>
