@@ -25,6 +25,9 @@ public sealed class AppHost : IDisposable
 
     public AppHost(AppPaths paths) => this.paths = paths;
 
+    /// <summary>Developer flag (--seed-demo): fill demo data. Only honoured with EULE_DATA_DIR set, never on real data.</summary>
+    public bool SeedDemo { get; init; }
+
     public SettingsStore SettingsStore { get; private set; } = null!;
     public EuleSettings Settings { get; private set; } = null!;
     public EuleDatabase Database { get; private set; } = null!;
@@ -73,6 +76,13 @@ public sealed class AppHost : IDisposable
         catch (Exception ex)
         {
             Log.Warning(ex, "Eski veriler aktarılamadı");
+        }
+
+        if (SeedDemo && paths.IsOverridden && Database.GetMeta("demo") == null)
+        {
+            DemoData.Seed(Database, DateOnly.FromDateTime(DateTime.Today));
+            Database.SetMeta("demo", "1");
+            Log.Information("Demo verisi yüklendi: {Dir}", paths.DataDir);
         }
 
         Settings = SettingsStore.Load();
@@ -151,7 +161,7 @@ public sealed class AppHost : IDisposable
     public void Dispose()
     {
         timer?.Stop();
-        try { Stats?.Flush(); } catch (Exception ex) { Log.Error(ex, "İstatistik yazılamadı"); }
+        try { Stats?.Flush(final: true); } catch (Exception ex) { Log.Error(ex, "İstatistik yazılamadı"); }
         Database?.Dispose();
     }
 }

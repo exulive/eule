@@ -4,7 +4,8 @@ using Microsoft.Data.Sqlite;
 namespace Eule.Core.Storage;
 
 public sealed record DailyStats(
-    DateOnly Date, int SitSeconds, int Breaks, int AwayBreaks, int Skipped, int Snoozed, int EmergencyExits, int EyeBreaks)
+    DateOnly Date, int SitSeconds, int Breaks, int AwayBreaks, int Skipped, int Snoozed, int EmergencyExits, int EyeBreaks,
+    int LongestStretch = 0)
 {
     public static DailyStats Empty(DateOnly date) => new(date, 0, 0, 0, 0, 0, 0, 0);
     public int AllBreaks => Breaks + AwayBreaks;
@@ -15,7 +16,7 @@ public enum Counter { Breaks, AwayBreaks, Skipped, Snoozed, EmergencyExits, EyeB
 /// <summary>Local SQLite store: per-day counters, per-hour sitting time (for the heat map) and an event log.</summary>
 public sealed class EuleDatabase : IDisposable
 {
-    const int SchemaVersion = 1;
+    const int SchemaVersion = 2;
     readonly SqliteConnection conn;
 
     public EuleDatabase(string path)
@@ -30,6 +31,19 @@ public sealed class EuleDatabase : IDisposable
     {
         long version = (long)Scalar("PRAGMA user_version")!;
         if (version >= SchemaVersion) return;
+        if (version < 1) CreateV1();
+        if (version < 2)
+        {
+            // v2: longest uninterrupted sitting of the day.
+            Exec("""
+                ALTER TABLE daily ADD COLUMN longest_stretch INTEGER NOT NULL DEFAULT 0;
+                PRAGMA user_version = 2;
+                """);
+        }
+    }
+
+    void CreateV1()
+    {
         Exec("""
             PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS meta(
@@ -131,6 +145,16 @@ public sealed class EuleDatabase : IDisposable
         tx.Commit();
     }
 
+    /// <summary>Raises the day's longest uninterrupted sitting to <paramref name="seconds"/> if it is longer.</summary>
+    public void RecordStretch(DateOnly date, int seconds)
+    {
+        if (seconds <= 0) return;
+        Exec("""
+            INSERT INTO daily(date, longest_stretch) VALUES($d, $s)
+            ON CONFLICT(date) DO UPDATE SET longest_stretch = MAX(longest_stretch, $s);
+            """, null, ("$d", Key(date)), ("$s", seconds));
+    }
+
     public void LogEvent(DateTime at, string type, string? data = null)
     {
         Exec("INSERT INTO events(ts, type, data) VALUES($ts, $t, $data)", null,
@@ -144,14 +168,15 @@ public sealed class EuleDatabase : IDisposable
     public List<DailyStats> GetDays(DateOnly from, DateOnly to)
     {
         using var cmd = Command("""
-            SELECT date, sit_seconds, breaks, away_breaks, skipped, snoozed, emergency_exits, eye_breaks
+            SELECT date, sit_seconds, breaks, away_breaks, skipped, snoozed, emergency_exits, eye_breaks, longest_stretch
             FROM daily WHERE date BETWEEN $f AND $t ORDER BY date
             """, null, ("$f", Key(from)), ("$t", Key(to)));
         using var r = cmd.ExecuteReader();
         var list = new List<DailyStats>();
         while (r.Read())
             list.Add(new DailyStats(DateOnly.ParseExact(r.GetString(0), "yyyy-MM-dd", CultureInfo.InvariantCulture),
-                r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4), r.GetInt32(5), r.GetInt32(6), r.GetInt32(7)));
+                r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4), r.GetInt32(5), r.GetInt32(6), r.GetInt32(7),
+                r.GetInt32(8)));
         return list;
     }
 

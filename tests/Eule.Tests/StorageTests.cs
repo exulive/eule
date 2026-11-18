@@ -127,7 +127,7 @@ public class StatsRecorderTests
         h.Engine.Skip();
         h.Run(30 * 60);
         h.Engine.Snooze();
-        rec.Flush();
+        rec.Flush(final: true);
 
         var today = db.GetDay(DateOnly.FromDateTime(h.Now));
         Assert.Equal(90 * 60, today.SitSeconds);

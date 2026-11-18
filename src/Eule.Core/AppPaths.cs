@@ -8,11 +8,16 @@ public sealed class AppPaths(string dataDir, string legacyDir)
         get
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return new AppPaths(Path.Combine(appData, "Eule"), Path.Combine(appData, "OturmaSayaci"));
+            // EULE_DATA_DIR lets developers run against a throw-away folder (demo data, screenshots).
+            string? overrideDir = Environment.GetEnvironmentVariable("EULE_DATA_DIR");
+            return string.IsNullOrWhiteSpace(overrideDir)
+                ? new AppPaths(Path.Combine(appData, "Eule"), Path.Combine(appData, "OturmaSayaci"))
+                : new AppPaths(overrideDir, Path.Combine(overrideDir, "legacy-none"));
         }
     }
 
     public string DataDir { get; } = dataDir;
+    public bool IsOverridden => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("EULE_DATA_DIR"));
     public string SettingsFile => Path.Combine(DataDir, "settings.json");
     public string DatabaseFile => Path.Combine(DataDir, "eule.db");
     public string LogDir => Path.Combine(DataDir, "logs");

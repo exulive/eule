@@ -42,13 +42,14 @@ public partial class App : Application
         base.OnStartup(e);
         Log.Information("Eule başlıyor (sürüm {Version})", typeof(App).Assembly.GetName().Version);
 
-        host = new AppHost(paths);
+        host = new AppHost(paths) { SeedDemo = e.Args.Contains("--seed-demo") };
         host.Start();
         shell = new Shell(host);
         shell.Start();
 
         // Developer shortcuts for trying the UI without waiting.
         if (e.Args.Contains("--settings")) shell.OpenSettings();
+        if (e.Args.Contains("--stats")) shell.OpenStats();
         if (e.Args.Contains("--break")) host.Do(x => x.StartBreakNow());
         if (e.Args.Contains("--eye")) shell.PreviewEyeBreak();
     }

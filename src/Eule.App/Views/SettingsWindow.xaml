@@ -20,6 +20,8 @@
                 <!-- Header -->
                 <DockPanel Margin="0,8,0,0">
                     <c:OwlView x:Name="Owl" Width="58" Height="58" DockPanel.Dock="Left" />
+                    <ui:Button x:Name="StatsButton" DockPanel.Dock="Right" VerticalAlignment="Center" Appearance="Secondary"
+                               Content="İstatistik" />
                     <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="Eule" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Eule.Ink}" />
                         <TextBlock x:Name="TodayText" FontSize="12.5" Foreground="{DynamicResource Eule.Muted}" />

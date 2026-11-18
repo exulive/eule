@@ -13,11 +13,16 @@ public sealed class StatsRecorder
     readonly Func<DateTime> now;
     readonly Dictionary<(DateOnly Date, int Hour), int> buffer = [];
 
+    // Uninterrupted sitting: grows with every sitting second, ends with a completed break or time away.
+    // Skips and snoozes do not end it - you kept sitting.
+    int currentStretch, longestClosed;
+
     public StatsRecorder(EuleDatabase db, Func<DateTime> now)
     {
         this.db = db;
         this.now = now;
         Today = db.GetDay(DateOnly.FromDateTime(now()));
+        longestClosed = Today.LongestStretch;
     }
 
     public DailyStats Today { get; private set; }
@@ -36,11 +41,19 @@ public sealed class StatsRecorder
         {
             case Sitting sit:
                 AddBuffer(date, t.Hour, sit.Seconds);
-                Today = Today with { SitSeconds = Today.SitSeconds + sit.Seconds };
+                currentStretch += sit.Seconds;
+                Today = Today with
+                {
+                    SitSeconds = Today.SitSeconds + sit.Seconds,
+                    LongestStretch = Math.Max(longestClosed, currentStretch),
+                };
                 break;
 
             case AwayCredited away:
                 AddBuffer(date, t.Hour, -away.UncountSeconds);
+                // The idle part was never real sitting: take it off before closing the stretch.
+                currentStretch = Math.Max(0, currentStretch - away.UncountSeconds);
+                CloseStretch(date);
                 Today = Today with
                 {
                     SitSeconds = Math.Max(0, Today.SitSeconds - away.UncountSeconds),
@@ -50,6 +63,7 @@ public sealed class StatsRecorder
                 break;
 
             case BreakEnded { Reason: BreakEndReason.Completed }:
+                CloseStretch(date);
                 Today = Today with { Breaks = Today.Breaks + 1 };
                 Count(date, Counter.Breaks);
                 break;
@@ -60,6 +74,7 @@ public sealed class StatsRecorder
                 break;
 
             case BreakEnded { Reason: BreakEndReason.EmergencyExit }:
+                CloseStretch(date);
                 Today = Today with { EmergencyExits = Today.EmergencyExits + 1 };
                 Count(date, Counter.EmergencyExits);
                 break;
@@ -81,12 +96,27 @@ public sealed class StatsRecorder
         Changed?.Invoke();
     }
 
-    /// <summary>Writes buffered sitting time. Call every ~30 seconds and on exit.</summary>
-    public void Flush()
+    /// <summary>
+    /// Writes buffered sitting time. Call every ~30 seconds, and with <paramref name="final"/> on exit so the
+    /// running stretch is kept too. (While running it is not written: it may still include idle time that an
+    /// upcoming "away" event takes back.)
+    /// </summary>
+    public void Flush(bool final = false)
     {
-        if (buffer.Count == 0) return;
-        db.AddSitting(buffer.ToList());
-        buffer.Clear();
+        if (buffer.Count > 0)
+        {
+            db.AddSitting(buffer.ToList());
+            buffer.Clear();
+        }
+        if (final) db.RecordStretch(Today.Date, currentStretch);
+    }
+
+    void CloseStretch(DateOnly date)
+    {
+        longestClosed = Math.Max(longestClosed, currentStretch);
+        db.RecordStretch(date, currentStretch);
+        currentStretch = 0;
+        Today = Today with { LongestStretch = longestClosed };
     }
 
     void AddBuffer(DateOnly date, int hour, int seconds)
@@ -105,6 +135,9 @@ public sealed class StatsRecorder
     {
         if (Today.Date == date) return;
         Flush();
+        db.RecordStretch(Today.Date, currentStretch); // a stretch over midnight counts for the day it was in
+        currentStretch = 0;
         Today = db.GetDay(date);
+        longestClosed = Today.LongestStretch;
     }
 }

@@ -17,6 +17,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     readonly DispatcherTimer saveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     bool loading;
 
+    public event Action? OpenStatsRequested;
+
     public SettingsWindow(AppHost host)
     {
         this.host = host;
@@ -39,6 +41,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         HoursStart.LostFocus += (_, _) => Changed();
         HoursEnd.LostFocus += (_, _) => Changed();
         OpenFolder.Click += (_, _) => Process.Start("explorer.exe", AppPaths.Default.DataDir);
+        StatsButton.Click += (_, _) => OpenStatsRequested?.Invoke();
 
         host.Updated += RefreshHeader;
         Closed += (_, _) =>

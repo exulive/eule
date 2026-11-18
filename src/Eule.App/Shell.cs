@@ -231,9 +231,26 @@ public sealed class Shell : IDisposable
             return;
         }
         settingsWindow = new SettingsWindow(host);
+        settingsWindow.OpenStatsRequested += OpenStats;
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show();
         settingsWindow.Activate();
+    }
+
+    StatsWindow? statsWindow;
+
+    public void OpenStats()
+    {
+        if (statsWindow != null)
+        {
+            if (statsWindow.WindowState == WindowState.Minimized) statsWindow.WindowState = WindowState.Normal;
+            statsWindow.Activate();
+            return;
+        }
+        statsWindow = new StatsWindow(host);
+        statsWindow.Closed += (_, _) => statsWindow = null;
+        statsWindow.Show();
+        statsWindow.Activate();
     }
 
     void Exit()
@@ -263,6 +280,7 @@ public sealed class Shell : IDisposable
         miPause = Item("Duraklat", "", () => host.Do(e => e.TogglePause()));
         miReset = Item("Sayacı sıfırla", "", () => host.Do(e => e.Reset()));
         miWidget = Item("Köşede göster", "", () => SetWidgetVisible(!widget.IsVisible));
+        var miStats = Item("İstatistik", "", OpenStats);
         var miSettings = Item("Ayarlar", "", OpenSettings);
         var miExit = Item("Çıkış", "", Exit);
 
@@ -274,6 +292,7 @@ public sealed class Shell : IDisposable
         menu.Items.Add(miReset);
         menu.Items.Add(new Separator());
         menu.Items.Add(miWidget);
+        menu.Items.Add(miStats);
         menu.Items.Add(miSettings);
         menu.Items.Add(new Separator());
         menu.Items.Add(miExit);
