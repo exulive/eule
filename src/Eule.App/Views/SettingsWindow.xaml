@@ -246,7 +246,8 @@
                 <Border Style="{StaticResource Eule.Row}">
                     <StackPanel>
                         <DockPanel>
-                            <ui:Button x:Name="UpdateButton" DockPanel.Dock="Right" Appearance="Secondary" Content="{l:T set.checkUpdate}" />
+                            <ui:Button x:Name="UpdateButton" DockPanel.Dock="Right" VerticalAlignment="Center" Appearance="Secondary"
+                                       Padding="14,6" Content="{l:T set.checkUpdate}" />
                             <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
                                 <TextBlock x:Name="VersionText" Style="{StaticResource Eule.RowTitle}" />
                                 <TextBlock x:Name="UpdateText" Style="{StaticResource Eule.RowDesc}" />

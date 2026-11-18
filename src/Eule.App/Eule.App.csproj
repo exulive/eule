@@ -38,7 +38,7 @@
     <AssemblyName>Eule</AssemblyName>
     <RootNamespace>Eule.App</RootNamespace>
     <Product>Eule</Product>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Description>Oturma süresini takip eden, mola hatırlatan ücretsiz Windows uygulaması.</Description>
   </PropertyGroup>
 
