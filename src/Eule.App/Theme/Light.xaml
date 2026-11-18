@@ -1,0 +1,19 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Eule tokens: warm paper + ink, one state accent. -->
+    <SolidColorBrush x:Key="Eule.Surface" Color="#F6F3EC" />
+    <SolidColorBrush x:Key="Eule.Raised" Color="#FFFDF9" />
+    <SolidColorBrush x:Key="Eule.Ink" Color="#1F1D1A" />
+    <SolidColorBrush x:Key="Eule.Muted" Color="#7A7469" />
+    <SolidColorBrush x:Key="Eule.Line" Color="#E6E0D4" />
+    <SolidColorBrush x:Key="Eule.Track" Color="#ECE6DA" />
+    <SolidColorBrush x:Key="Eule.OwlBody" Color="#2A2824" />
+    <SolidColorBrush x:Key="Eule.OwlEye" Color="#FFFDF9" />
+    <SolidColorBrush x:Key="Eule.Sit" Color="#6F9C7B" />
+    <SolidColorBrush x:Key="Eule.Warn" Color="#D19A4E" />
+    <SolidColorBrush x:Key="Eule.Break" Color="#5E97C7" />
+    <SolidColorBrush x:Key="Eule.Idle" Color="#A39D92" />
+    <SolidColorBrush x:Key="Eule.Overlay" Color="#F6F3EC" />
+    <Color x:Key="Eule.ShadowColor">#5A4A2E</Color>
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="Eule.ShadowOpacity">0.16</sys:Double>
+</ResourceDictionary>

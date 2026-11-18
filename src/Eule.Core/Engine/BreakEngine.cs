@@ -291,10 +291,12 @@ public sealed class BreakEngine
 
     public void ApplySettings(EuleSettings settings)
     {
+        int oldWork = Settings.WorkSeconds;
         Settings = settings.Clone();
-        if (Phase is Phase.Working or Phase.Paused)
+        // Only a changed sitting length moves the target; other settings must not cancel a running snooze.
+        if (Settings.WorkSeconds != oldWork && Phase is Phase.Working or Phase.Paused)
         {
-            WorkTarget = Settings.WorkSeconds;
+            WorkTarget = Math.Max(WorkTarget + Settings.WorkSeconds - oldWork, WorkElapsed + 1);
             warned = WorkLeft <= Settings.WarnSeconds;
         }
     }

@@ -1,0 +1,182 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <FontFamily x:Key="Eule.Font">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="Eule.IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+    <!-- Big, light, tabular numbers so the clock never jitters. -->
+    <Style x:Key="Eule.Clock" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontWeight" Value="Light" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Ink}" />
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+    </Style>
+
+    <Style x:Key="Eule.Caption" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Eule.Font}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Muted}" />
+    </Style>
+
+    <!-- Round, borderless icon button (widget tools). -->
+    <Style x:Key="Eule.IconButton" TargetType="Button">
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="FontFamily" Value="{StaticResource Eule.IconFont}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Muted}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" CornerRadius="14" Background="Transparent">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Eule.Track}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Eule.Ink}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Pill button: quiet by default. -->
+    <Style x:Key="Eule.Pill" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource Eule.Font}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="Margin" Value="0,0,6,6" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Ink}" />
+        <Setter Property="Background" Value="{DynamicResource Eule.Track}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" CornerRadius="16" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Opacity" Value="0.85" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bg" Property="Opacity" Value="0.7" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bg" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Primary pill: ink on paper, inverted. -->
+    <Style x:Key="Eule.PillPrimary" TargetType="Button" BasedOn="{StaticResource Eule.Pill}">
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Raised}" />
+        <Setter Property="Background" Value="{DynamicResource Eule.Ink}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Chip toggle (presets, days). -->
+    <Style x:Key="Eule.Chip" TargetType="ToggleButton">
+        <Setter Property="FontFamily" Value="{StaticResource Eule.Font}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Margin" Value="0,0,6,6" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Ink}" />
+        <Setter Property="Background" Value="{DynamicResource Eule.Track}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bg" CornerRadius="15" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Opacity" Value="0.85" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Eule.Ink}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Eule.Raised}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bg" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Selectable card (reminder level). Content is the card body. -->
+    <Style x:Key="Eule.ChoiceCard" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Ink}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bg" CornerRadius="10" BorderThickness="1.5" Padding="14,11"
+                            BorderBrush="{DynamicResource Eule.Line}" Background="{DynamicResource Eule.Raised}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Ellipse x:Name="Dot" Width="10" Height="10" Margin="0,4,12,0" VerticalAlignment="Top"
+                                     Stroke="{DynamicResource Eule.Muted}" StrokeThickness="1.5" />
+                            <ContentPresenter Grid.Column="1" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="{DynamicResource Eule.Muted}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="{DynamicResource Eule.Ink}" />
+                            <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Eule.Ink}" />
+                            <Setter TargetName="Dot" Property="Stroke" Value="{DynamicResource Eule.Ink}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Eule.SectionTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Eule.Font}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Ink}" />
+        <Setter Property="Margin" Value="2,26,0,10" />
+    </Style>
+
+    <Style x:Key="Eule.RowTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Ink}" />
+    </Style>
+
+    <Style x:Key="Eule.RowDesc" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{DynamicResource Eule.Muted}" />
+    </Style>
+
+    <!-- Settings row: title/description on the left, control on the right. -->
+    <Style x:Key="Eule.Row" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Eule.Raised}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Eule.Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+</ResourceDictionary>

@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Eule.Core\Eule.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="4.1.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+  </ItemGroup>
+
+  <!-- WinForms is only used for the tray icon; keep its namespaces out of the global usings to avoid WPF name clashes. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WFAC010 is a WinForms-startup hint; this is a WPF app that declares per-monitor DPI in its manifest. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <AssemblyName>Eule</AssemblyName>
+    <RootNamespace>Eule.App</RootNamespace>
+    <Product>Eule</Product>
+    <Version>0.1.0</Version>
+    <Description>Oturma süresini takip eden, mola hatırlatan ücretsiz Windows uygulaması.</Description>
+  </PropertyGroup>
+
+</Project>

@@ -300,6 +300,27 @@ public class EngineTests
     }
 
     [Fact]
+    public void Apply_settings_keeps_a_running_snooze()
+    {
+        var h = new Harness(s => { s.Level = ReminderLevel.Firm; s.SnoozeMinutes = 5; });
+        h.Run(30 * 60);
+        h.Engine.Snooze();
+        h.Run(60);
+        h.Engine.ApplySettings(new EuleSettings { Level = ReminderLevel.Firm, SnoozeMinutes = 5, Sound = false });
+        Assert.Equal(4 * 60, h.Engine.WorkLeft);
+    }
+
+    [Fact]
+    public void Shortening_work_below_elapsed_breaks_on_next_tick()
+    {
+        var h = new Harness(s => s.Level = ReminderLevel.Firm);
+        h.Run(20 * 60);
+        h.Engine.ApplySettings(new EuleSettings { WorkMinutes = 10, Level = ReminderLevel.Firm });
+        h.Run(1);
+        Assert.Equal(Phase.Break, h.Engine.Phase);
+    }
+
+    [Fact]
     public void Progress_runs_from_zero_to_one()
     {
         var h = new Harness(s => s.Level = ReminderLevel.Firm);
