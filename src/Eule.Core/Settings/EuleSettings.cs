@@ -74,6 +74,8 @@ public sealed class EuleSettings
     public bool Sound { get; set; } = true;
     public bool ShowWidget { get; set; } = true;
     public bool StartWithWindows { get; set; }
+    /// <summary>Breaks per day that count the day towards the streak.</summary>
+    public int DailyBreakGoal { get; set; } = 4;
 
     public EyeBreakSettings EyeBreak { get; set; } = new();
     public WorkHoursSettings WorkHours { get; set; } = new();
@@ -97,6 +99,7 @@ public sealed class EuleSettings
         WarnSeconds = Math.Clamp(WarnSeconds, 0, 600);
         BalancedGraceSeconds = Math.Clamp(BalancedGraceSeconds, 10, 600);
         GentleRepeatSeconds = Math.Clamp(GentleRepeatSeconds, 60, 3600);
+        DailyBreakGoal = Math.Clamp(DailyBreakGoal, 1, 20);
         EyeBreak ??= new();
         EyeBreak.IntervalMinutes = Math.Clamp(EyeBreak.IntervalMinutes, 5, 120);
         EyeBreak.DurationSeconds = Math.Clamp(EyeBreak.DurationSeconds, 5, 120);

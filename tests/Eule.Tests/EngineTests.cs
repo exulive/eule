@@ -216,6 +216,26 @@ public class EngineTests
     }
 
     [Fact]
+    public void Full_screen_alone_defers_at_most_thirty_minutes()
+    {
+        var h = new Harness(s => s.Level = ReminderLevel.Firm);
+        h.Run(30 * 60, busy: BusyReason.FullScreen);
+        Assert.Equal(Phase.Deferred, h.Engine.Phase);
+        h.Run(BreakEngine.MaxFullScreenDeferSeconds - 1, busy: BusyReason.FullScreen);
+        Assert.Equal(Phase.Deferred, h.Engine.Phase);
+        h.Run(1, busy: BusyReason.FullScreen);
+        Assert.Equal(Phase.Break, h.Engine.Phase);
+    }
+
+    [Fact]
+    public void A_call_defers_without_limit()
+    {
+        var h = new Harness(s => s.Level = ReminderLevel.Firm);
+        h.Run(30 * 60 + 2 * 3600, busy: BusyReason.Call | BusyReason.FullScreen);
+        Assert.Equal(Phase.Deferred, h.Engine.Phase);
+    }
+
+    [Fact]
     public void Busy_is_ignored_when_defer_is_off()
     {
         var h = new Harness(s => { s.Level = ReminderLevel.Firm; s.DeferWhenBusy = false; });

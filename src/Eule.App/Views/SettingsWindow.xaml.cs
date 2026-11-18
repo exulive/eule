@@ -24,9 +24,9 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); Save(); };
 
-        foreach (var nb in new[] { WorkBox, BreakBox, SnoozeBox, MaxSnoozeBox, WarnBox })
+        foreach (var nb in new[] { WorkBox, BreakBox, GoalBox, SnoozeBox, MaxSnoozeBox, WarnBox })
             nb.ValueChanged += (_, _) => Changed();
-        foreach (var ts in new[] { EmergencySwitch, BusySwitch, AwaySwitch, AutoRestartSwitch, SoundSwitch, WidgetSwitch, StartupSwitch, HoursSwitch })
+        foreach (var ts in new[] { EmergencySwitch, BusySwitch, AwaySwitch, AutoRestartSwitch, EyeSwitch, CoverSwitch, SoundSwitch, WidgetSwitch, StartupSwitch, HoursSwitch })
             ts.Click += (_, _) => Changed();
         foreach (RadioButton rb in Levels.Children)
             rb.Checked += (_, _) => Changed();
@@ -58,6 +58,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         var s = host.Settings;
         WorkBox.Value = s.WorkMinutes;
         BreakBox.Value = s.BreakMinutes;
+        GoalBox.Value = s.DailyBreakGoal;
         SnoozeBox.Value = s.SnoozeMinutes;
         MaxSnoozeBox.Value = s.MaxSnoozes;
         WarnBox.Value = s.WarnSeconds;
@@ -66,6 +67,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         BusySwitch.IsChecked = s.DeferWhenBusy;
         AwaySwitch.IsChecked = s.IdleCountsAsBreak;
         AutoRestartSwitch.IsChecked = s.AutoRestart;
+        EyeSwitch.IsChecked = s.EyeBreak.Enabled;
+        CoverSwitch.IsChecked = s.CoverAllMonitors;
         SoundSwitch.IsChecked = s.Sound;
         WidgetSwitch.IsChecked = s.ShowWidget;
         StartupSwitch.IsChecked = s.StartWithWindows;
@@ -86,7 +89,9 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         Owl.Progress = e.Progress;
         Owl.Mood = Present.Mood(e);
         var t = host.Stats.Today;
-        TodayText.Text = $"{Present.Status(e)} · bugün {Present.Duration(t.SitSeconds)} oturdun, {t.AllBreaks} mola";
+        var streak = host.Streak;
+        TodayText.Text = $"{Present.Status(e)} · bugün {Present.Duration(t.SitSeconds)} oturdun, {t.AllBreaks}/{streak.Goal} mola" +
+                         (streak.Days > 0 ? $" · {streak.Days} gün seri" : "");
     }
 
     void ApplyPreset(string tag)
@@ -131,6 +136,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         var s = host.Settings.Clone();
         s.WorkMinutes = (int)(WorkBox.Value ?? s.WorkMinutes);
         s.BreakMinutes = (int)(BreakBox.Value ?? s.BreakMinutes);
+        s.DailyBreakGoal = (int)(GoalBox.Value ?? s.DailyBreakGoal);
         s.SnoozeMinutes = (int)(SnoozeBox.Value ?? s.SnoozeMinutes);
         s.MaxSnoozes = (int)(MaxSnoozeBox.Value ?? s.MaxSnoozes);
         s.WarnSeconds = (int)(WarnBox.Value ?? s.WarnSeconds);
@@ -140,6 +146,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         s.DeferWhenBusy = BusySwitch.IsChecked == true;
         s.IdleCountsAsBreak = AwaySwitch.IsChecked == true;
         s.AutoRestart = AutoRestartSwitch.IsChecked == true;
+        s.EyeBreak.Enabled = EyeSwitch.IsChecked == true;
+        s.CoverAllMonitors = CoverSwitch.IsChecked == true;
         s.Sound = SoundSwitch.IsChecked == true;
         s.ShowWidget = WidgetSwitch.IsChecked == true;
         s.StartWithWindows = StartupSwitch.IsChecked == true;

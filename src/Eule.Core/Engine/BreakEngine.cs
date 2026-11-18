@@ -14,7 +14,10 @@ public sealed class BreakEngine
     /// <summary>Idle below this many seconds means the user is back.</summary>
     public const int ReturnIdleSeconds = 5;
 
-    int dueElapsed, eyeElapsed;
+    /// <summary>A full-screen app (video, game) may hold the break this long; calls and presentations have no limit.</summary>
+    public const int MaxFullScreenDeferSeconds = 30 * 60;
+
+    int dueElapsed, eyeElapsed, deferElapsed;
     bool warned;
 
     public BreakEngine(EuleSettings settings)
@@ -151,6 +154,7 @@ public sealed class BreakEngine
                 break;
 
             case Phase.Deferred:
+                deferElapsed += seconds;
                 if (!IsBusy(env)) BreakIsDue(env);
                 break;
 
@@ -167,7 +171,13 @@ public sealed class BreakEngine
         }
     }
 
-    bool IsBusy(EnvironmentSnapshot env) => Settings.DeferWhenBusy && env.Busy != BusyReason.None;
+    bool IsBusy(EnvironmentSnapshot env)
+    {
+        if (!Settings.DeferWhenBusy || env.Busy == BusyReason.None) return false;
+        // Only a full-screen app (no call, no presentation) runs out of patience.
+        bool onlyFullScreen = (env.Busy & ~BusyReason.FullScreen) == BusyReason.None;
+        return !(onlyFullScreen && deferElapsed >= MaxFullScreenDeferSeconds);
+    }
 
     void BreakIsDue(EnvironmentSnapshot env)
     {
@@ -175,6 +185,7 @@ public sealed class BreakEngine
         {
             if (Phase != Phase.Deferred)
             {
+                deferElapsed = 0;
                 SetPhase(Phase.Deferred);
                 Raise(new BreakDeferred(env.Busy));
             }

@@ -19,7 +19,13 @@ public sealed class Shell : IDisposable
     TrayIcon tray = null!;
     WidgetWindow widget = null!;
     BreakWindow? breakWindow;
+    readonly List<CoverWindow> covers = [];
     SettingsWindow? settingsWindow;
+    EyeBreakWindow? eyeWindow;
+    /// <summary>The widget was hidden by the user but is shown while Eule needs an answer.</summary>
+    bool widgetShownForPrompt;
+    /// <summary>The day the "goal met" message was shown, so it appears once per day.</summary>
+    DateOnly? goalCelebrated;
 
     readonly ContextMenu menu = new();
     readonly Window menuHost = new()
@@ -48,6 +54,7 @@ public sealed class Shell : IDisposable
         host.SettingsChanged += OnSettingsChanged;
         host.Engine.Raised += OnEngineEvent;
         theme.Changed += Refresh;
+        if (host.Streak.TodayMet) goalCelebrated = host.Stats.Today.Date; // don't congratulate again after a restart
 
         StartupRegistration.Apply(host.Settings.StartWithWindows);
         Refresh();
@@ -64,30 +71,91 @@ public sealed class Shell : IDisposable
         var e = host.Engine;
         string status = Present.Status(e);
         tray.Update(e, status);
+        UpdatePromptWidget(e);
         if (widget.IsVisible) widget.Refresh();
 
         bool breakScreen = e.Phase is Phase.Break || (e.Phase is Phase.BreakFinished && breakWindow != null);
-        if (breakScreen && breakWindow == null)
-        {
-            breakWindow = new BreakWindow(host);
-            breakWindow.Closed += (_, _) => breakWindow = null;
-            breakWindow.Show();
-            breakWindow.Activate();
-        }
-        else if (!breakScreen && breakWindow != null)
-        {
-            breakWindow.CloseByCode();
-        }
+        if (breakScreen && breakWindow == null) OpenBreakScreens(e);
+        else if (!breakScreen && breakWindow != null) CloseBreakScreens();
         breakWindow?.Refresh();
+        foreach (var c in covers) c.Refresh();
 
         miStatus.Header = status;
         var t = host.Stats.Today;
-        miToday.Header = $"Bugün {Present.Duration(t.SitSeconds)} oturdun · {t.AllBreaks} mola";
+        var streak = host.Streak;
+        miToday.Header = $"Bugün {Present.Duration(t.SitSeconds)} · {t.AllBreaks}/{streak.Goal} mola" +
+                         (streak.Days > 0 ? $" · {streak.Days} gün seri" : "");
         miBreak.IsEnabled = e.Phase is Phase.Working or Phase.Paused or Phase.Deferred or Phase.BreakDue;
         miPause.Header = e.Phase == Phase.Paused ? "Devam et" : "Duraklat";
         miPause.IsEnabled = e.Phase is Phase.Working or Phase.Paused or Phase.Deferred or Phase.BreakDue or Phase.Away;
         miReset.IsEnabled = e.Phase is not Phase.Break;
         miWidget.IsChecked = widget.IsVisible;
+    }
+
+    void OpenBreakScreens(BreakEngine e)
+    {
+        eyeWindow?.Close();
+        breakWindow = new BreakWindow(host, Interop.ScreenPlacement.Primary);
+        breakWindow.Show();
+        breakWindow.Activate();
+
+        // A strict break always covers every monitor; otherwise it is a setting.
+        if (e.IsStrictBreak || host.Settings.CoverAllMonitors)
+        {
+            double fade = e.IsStrictBreak ? BreakWindow.StrictDimSeconds : 0.7;
+            foreach (var screen in Interop.ScreenPlacement.Others)
+            {
+                var cover = new CoverWindow(host, screen, fade);
+                covers.Add(cover);
+                cover.Show();
+            }
+        }
+        breakWindow.Activate();
+    }
+
+    void CloseBreakScreens()
+    {
+        breakWindow?.CloseByCode();
+        breakWindow = null;
+        foreach (var c in covers) c.CloseByCode();
+        covers.Clear();
+    }
+
+    /// <summary>When the widget is hidden, it still comes out to ask for the break, then goes away again.</summary>
+    void UpdatePromptWidget(BreakEngine e)
+    {
+        bool needsAnswer = e.Phase is Phase.BreakDue or Phase.Deferred;
+        if (needsAnswer && !widget.IsVisible)
+        {
+            widgetShownForPrompt = true;
+            ShowWidgetWindow(true);
+        }
+        else if (!needsAnswer && widgetShownForPrompt)
+        {
+            widgetShownForPrompt = false;
+            if (!host.Settings.ShowWidget) ShowWidgetWindow(false);
+        }
+    }
+
+    void ShowEyeBreak(int seconds)
+    {
+        // Not during a call, a presentation or a full-screen app, and never over a real break.
+        if (host.Busy != BusyReason.None || breakWindow != null || eyeWindow != null) return;
+        eyeWindow = new EyeBreakWindow(seconds);
+        eyeWindow.Closed += (_, _) => eyeWindow = null;
+        eyeWindow.Show();
+    }
+
+    /// <summary>Developer preview (--eye).</summary>
+    public void PreviewEyeBreak() => ShowEyeBreak(host.Settings.EyeBreak.DurationSeconds);
+
+    void CheckGoal()
+    {
+        var streak = host.Streak;
+        if (!streak.TodayMet || goalCelebrated == host.Stats.Today.Date) return;
+        goalCelebrated = host.Stats.Today.Date;
+        tray.Notify("Bugünkü hedef tamam",
+            streak.Days > 1 ? $"{streak.Days} gündür hedeftesin. Eule seninle gurur duyuyor." : "Eule seninle gurur duyuyor.");
     }
 
     void OnEngineEvent(EngineEvent ev)
@@ -100,16 +168,19 @@ public sealed class Shell : IDisposable
                 break;
             case BreakDue due:
                 if (!due.Repeat) Play(SystemSounds.Asterisk);
-                if (!widget.IsVisible) tray.Notify("Kalkma zamanı", "Biraz kalkıp dolaşmaya ne dersin?");
                 break;
             case WarningRaised w when !widget.IsVisible:
                 tray.Notify("Mola yaklaşıyor", $"{Math.Max(1, w.SecondsLeft / 60)} dakika sonra kalkma zamanı.");
                 break;
             case BreakEnded { Reason: BreakEndReason.Completed }:
                 Play(SystemSounds.Asterisk);
+                Application.Current.Dispatcher.BeginInvoke(CheckGoal);
+                break;
+            case AwayCredited:
+                Application.Current.Dispatcher.BeginInvoke(CheckGoal);
                 break;
             case EyeBreakDue eye:
-                tray.Notify("Göz molası", $"{eye.Seconds} saniye boyunca uzağa bak.");
+                ShowEyeBreak(eye.Seconds);
                 break;
         }
 
@@ -223,7 +294,7 @@ public sealed class Shell : IDisposable
     public void Dispose()
     {
         tray?.Dispose();
-        breakWindow?.CloseByCode();
+        CloseBreakScreens();
     }
 }
 

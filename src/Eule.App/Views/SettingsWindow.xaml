@@ -55,6 +55,16 @@
                         </StackPanel>
                     </DockPanel>
                 </Border>
+                <Border Style="{StaticResource Eule.Row}">
+                    <DockPanel>
+                        <ui:NumberBox x:Name="GoalBox" DockPanel.Dock="Right" Width="132" Minimum="1" Maximum="20"
+                                      SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Günlük mola hedefi" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Hedefe ulaştığın günler seriye eklenir. Bilgisayar başında olmadığın günler seriyi bozmaz." />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
 
                 <!-- Reminder level -->
                 <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="Hatırlatma biçimi" />
@@ -145,6 +155,24 @@
                         <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
                             <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Mola bitince kendiliğinden devam et" />
                             <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Kapalıysa sayaç sen 'Devam et' diyene kadar bekler." />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Border Style="{StaticResource Eule.Row}">
+                    <DockPanel>
+                        <ui:ToggleSwitch x:Name="EyeSwitch" DockPanel.Dock="Right" />
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Göz molası (20-20-20)" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="20 dakikada bir, ekranın üstünde 20 saniyelik küçük bir hatırlatma. Tıklamaları engellemez." />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Border Style="{StaticResource Eule.Row}">
+                    <DockPanel>
+                        <ui:ToggleSwitch x:Name="CoverSwitch" DockPanel.Dock="Right" />
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Style="{StaticResource Eule.RowTitle}" Text="Molada tüm ekranları kapla" />
+                            <TextBlock Style="{StaticResource Eule.RowDesc}" Text="Birden fazla monitörün varsa. Zorunlu molada her zaman açıktır." />
                         </StackPanel>
                     </DockPanel>
                 </Border>

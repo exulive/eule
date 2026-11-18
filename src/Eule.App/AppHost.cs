@@ -18,6 +18,7 @@ public sealed class AppHost : IDisposable
 {
     readonly AppPaths paths;
     readonly Stopwatch clock = new();
+    readonly BusyDetector busyDetector = new();
     DispatcherTimer? timer;
     double carry;
     int ticks;
@@ -29,6 +30,28 @@ public sealed class AppHost : IDisposable
     public EuleDatabase Database { get; private set; } = null!;
     public BreakEngine Engine { get; private set; } = null!;
     public StatsRecorder Stats { get; private set; } = null!;
+
+    /// <summary>What the user was busy with on the last tick (presentation, call, full screen).</summary>
+    public BusyReason Busy { get; private set; }
+
+    /// <summary>Current streak; recomputed only when today's numbers or the goal change.</summary>
+    public StreakInfo Streak
+    {
+        get
+        {
+            var t = Stats.Today;
+            var key = (t.Date, t.AllBreaks, t.EmergencyExits, t.SitSeconds >= Core.Storage.Streak.RestDaySeconds, Settings.DailyBreakGoal);
+            if (streakCache == null || streakKey != key)
+            {
+                streakKey = key;
+                streakCache = Core.Storage.Streak.Compute(Database, t, Settings.DailyBreakGoal);
+            }
+            return streakCache;
+        }
+    }
+
+    StreakInfo? streakCache;
+    (DateOnly, int, int, bool, int) streakKey;
 
     /// <summary>Raised after every tick and every command, for the UI to refresh.</summary>
     public event Action? Updated;
@@ -82,8 +105,9 @@ public sealed class AppHost : IDisposable
         if (seconds <= 0) return;
         carry -= seconds;
 
-        // Busy detection (presentation / call / full screen) arrives in phase 3.
-        Engine.Tick(new EnvironmentSnapshot(DateTime.Now, IdleInput.Seconds(), BusyReason.None), seconds);
+        // Only ask when it matters: detection walks the registry, and our own break screen is full screen.
+        Busy = Engine.Phase is Phase.Working or Phase.Deferred or Phase.BreakDue ? busyDetector.Current : BusyReason.None;
+        Engine.Tick(new EnvironmentSnapshot(DateTime.Now, IdleInput.Seconds(), Busy), seconds);
         if (++ticks % 30 == 0) Stats.Flush();
         Updated?.Invoke();
     }

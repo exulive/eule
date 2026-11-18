@@ -83,4 +83,28 @@ static class Present
 
     static readonly Random Rng = new();
     public static string RandomTip() => Tips[Rng.Next(Tips.Length)];
+
+    public sealed record Exercise(string Title, string Text);
+
+    /// <summary>Short movements for the break screen, roughly 30–40 seconds each.</summary>
+    public static readonly Exercise[] Exercises =
+    [
+        new("Ayağa kalk", "Önce bir kalk. Omuzlarını gevşet, ağırlığını iki ayağına eşit ver."),
+        new("Boyun", "Başını yavaşça sağa yatır, on saniye bekle. Sonra sola. Zorlamadan."),
+        new("Omuzlar", "Omuzlarını on kez geriye, on kez öne doğru büyük daireler çizerek çevir."),
+        new("Göğüs", "Ellerini arkada birleştir, kollarını hafifçe kaldır, göğsünü aç. On beş saniye."),
+        new("Bel", "Kollarını yukarı uzat. Önce sağa, sonra sola uzun bir yay gibi eğil."),
+        new("Bilekler", "Kolunu öne uzat, parmaklarını diğer elinle kendine doğru çek. İki el de."),
+        new("Bacaklar", "Bir ayağını arkaya kıvırıp bileğinden tut, on beş saniye. Sonra diğeri."),
+        new("Gözler", "Pencereden en uzak noktaya bak. Yirmi saniye sonra gözlerini birkaç kez kırp."),
+        new("Yürü", "Birkaç adım at. Bir bardak su doldur ya da pencereye kadar git gel."),
+    ];
+
+    /// <summary>Exercises for one break, starting with standing up, the rest shuffled.</summary>
+    public static List<Exercise> ExercisePlan()
+    {
+        var rest = Exercises.Skip(1).OrderBy(_ => Rng.Next()).ToList();
+        rest.Insert(0, Exercises[0]);
+        return rest;
+    }
 }

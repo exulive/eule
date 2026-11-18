@@ -50,6 +50,7 @@ public partial class App : Application
         // Developer shortcuts for trying the UI without waiting.
         if (e.Args.Contains("--settings")) shell.OpenSettings();
         if (e.Args.Contains("--break")) host.Do(x => x.StartBreakNow());
+        if (e.Args.Contains("--eye")) shell.PreviewEyeBreak();
     }
 
     void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
