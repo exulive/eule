@@ -14,7 +14,7 @@ public sealed class UpdateService
     /// The public GitHub repository whose Releases carry Eule packages (made with <c>vpk upload github</c>),
     /// e.g. "https://github.com/owner/eule". Empty = updates switched off.
     /// </summary>
-    public const string RepoUrl = "";
+    public const string RepoUrl = "https://github.com/exulive/eule";
 
     readonly UpdateManager? manager;
 

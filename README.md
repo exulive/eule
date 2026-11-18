@@ -57,9 +57,13 @@ dotnet tool install -g vpk --version 1.2.161   # Velopack paketiyle aynı sürü
 .NET 8 masaüstü çalışma zamanı yoksa kurulum onu da indirir. Kod imzası olmadığı için Windows
 SmartScreen ilk açılışta "Ek bilgi → Yine de çalıştır" ister.
 
-**Otomatik güncelleme** için: herkese açık bir GitHub deposu açın, adresini
-`src/Eule.App/UpdateService.cs` içindeki `RepoUrl` sabitine yazın ve her sürümden sonra
-`vpk upload github --repoUrl <adres> --publish --releaseName "Eule <sürüm>" --tag v<sürüm> --token <token>` çalıştırın.
+**Otomatik güncelleme** bu deponun GitHub Releases sayfasından çalışır
+(`src/Eule.App/UpdateService.cs` → `RepoUrl`). Her yeni sürümden sonra:
+
+```powershell
+.\pack.ps1 -Version 0.2.0
+vpk upload github --repoUrl https://github.com/exulive/eule --publish --releaseName "Eule 0.2.0" --tag v0.2.0 --token (gh auth token)
+```
 Kurulu kopyalar günde bir kez denetler, yeni sürümü indirir ve Eule kapanınca sessizce kurar.
 
 ## Dil
