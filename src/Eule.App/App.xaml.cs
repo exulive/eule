@@ -14,6 +14,7 @@ public partial class App : Application
     Mutex? singleInstance;
     AppHost? host;
     Shell? shell;
+    EventWaitHandle? quitSignal;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -51,6 +52,16 @@ public partial class App : Application
         string mutexName = "Eule_SingleInstance" + (paths.IsOverridden
             ? "_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(paths.DataDir.ToLowerInvariant())))[..12]
             : "");
+        string quitName = mutexName + "_Quit";
+
+        // "Eule.exe --quit": ask the running copy to close itself cleanly (scripts, updates), then leave.
+        if (e.Args.Contains("--quit"))
+        {
+            if (EventWaitHandle.TryOpenExisting(quitName, out var quit)) { quit.Set(); quit.Dispose(); }
+            Shutdown();
+            return;
+        }
+
         singleInstance = new Mutex(true, mutexName, out bool created);
         if (!created)
         {
@@ -60,6 +71,13 @@ public partial class App : Application
             Shutdown();
             return;
         }
+
+        quitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, quitName);
+        ThreadPool.RegisterWaitForSingleObject(quitSignal, (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            Log.Information("Kapatma isteği alındı (--quit)");
+            Shutdown();
+        }), null, Timeout.Infinite, executeOnlyOnce: true);
 
         base.OnStartup(e);
         Log.Information("Eule başlıyor (sürüm {Version}, dil {Lang})", UpdateService.CurrentVersion, L.Lang);

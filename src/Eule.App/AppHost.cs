@@ -64,7 +64,11 @@ public sealed class AppHost : IDisposable
     public void Start()
     {
         SettingsStore = new SettingsStore(paths.SettingsFile);
-        Database = new EuleDatabase(paths.DatabaseFile);
+        string backupDir = System.IO.Path.Combine(paths.DataDir, "yedek-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+        Database = EuleDatabase.OpenOrRepair(paths.DatabaseFile, backupDir, out var repair);
+        DatabaseRepair = repair;
+        if (repair != EuleDatabase.Repair.None)
+            Log.Warning("Veritabanı açılamadı ve onarıldı: {Repair}. Eski dosyalar: {Dir}", repair, backupDir);
 
         try
         {
@@ -194,6 +198,9 @@ public sealed class AppHost : IDisposable
     }
 
     public event Action? SettingsChanged;
+
+    /// <summary>What had to be done to open the database this time (normally nothing).</summary>
+    public EuleDatabase.Repair DatabaseRepair { get; private set; }
 
     /// <summary>True when Eule started without a settings file (first launch).</summary>
     public bool FirstRun { get; private set; }

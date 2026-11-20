@@ -93,6 +93,10 @@ public sealed class Shell : IDisposable
         host.Dictations.DeliveredLater += r => Application.Current.Dispatcher.BeginInvoke(() =>
             tray.Notify(L.T("note.deliveredTitle"), r.Reply));
 
+        if (host.DatabaseRepair != Core.Storage.EuleDatabase.Repair.None)
+            tray.Notify(L.T("db.repairedTitle"), L.T(host.DatabaseRepair == Core.Storage.EuleDatabase.Repair.JournalSetAside
+                ? "db.repairedJournal" : "db.repairedFresh"));
+
         // Sign in first (first launch and whenever there is no account), then the welcome tour on first launch.
         if (!host.Api.IsSignedIn) OpenLogin(after: host.FirstRun ? OpenWelcome : null);
         else if (host.FirstRun) OpenWelcome();

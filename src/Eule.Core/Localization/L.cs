@@ -143,7 +143,12 @@ public static class L
         ["note.goalTitle"] = ["Bugünkü hedef tamam", "Today's goal reached"],
         ["note.goalText"] = ["Eule seninle gurur duyuyor.", "Eule is proud of you."],
         ["note.goalStreak"] = ["{0} gündür hedeftesin. Eule seninle gurur duyuyor.", "{0} days in a row. Eule is proud of you."],
-        ["app.running"] = ["Eule zaten çalışıyor.", "Eule is already running."],
+        ["db.repairedTitle"] = ["Eule veritabanını onardı", "Eule repaired its database"],
+        ["db.repairedJournal"] = ["Yarım kalmış bir kayıt dosyası vardı; kenara alındı, verilerin yerinde.",
+                                  "A half-written journal was set aside; your data is intact."],
+        ["db.repairedFresh"] = ["Veritabanı okunamadı; yenisi açıldı. Eskisi veri klasöründeki yedekte duruyor.",
+                                "The database couldn't be read, so a new one was started. The old one is in a backup in the data folder."],
+        ["app.running"] =["Eule zaten çalışıyor.", "Eule is already running."],
         ["app.error"] = ["Beklenmeyen bir hata oluştu, Eule çalışmaya devam ediyor.\n\nAyrıntılar günlük dosyasına yazıldı:\n{0}",
                          "Something unexpected happened. Eule keeps running.\n\nDetails were written to the log:\n{0}"],
 

@@ -25,9 +25,68 @@ public sealed class EuleDatabase : IDisposable
     public EuleDatabase(string path)
     {
         if (path != ":memory:") Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        conn = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path }.ToString());
+        // No pooling: closing must really close the file, so the journal is merged and removed on exit.
+        conn = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
         conn.Open();
-        Migrate();
+        try
+        {
+            // Damage inside the file would otherwise only surface later, in the middle of a session.
+            if (path != ":memory:" && Scalar("PRAGMA quick_check") is string check && check != "ok")
+                throw new SqliteException($"Veritabanı bozuk: {check}", 11);
+            Migrate();
+        }
+        catch
+        {
+            conn.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>What <see cref="OpenOrRepair"/> had to do. <see cref="SavedTo"/> holds the set-aside files.</summary>
+    public enum Repair { None, JournalSetAside, StartedFresh }
+
+    /// <summary>
+    /// Opens the database and never leaves the app unable to start. If the file cannot be read:
+    /// 1) the write-ahead journal (-wal, -shm) is moved to a backup folder and the database is opened again,
+    ///    which fixes a stale journal left by a killed process;
+    /// 2) if it still fails, the database itself is moved there too and a fresh one is created.
+    /// Nothing is deleted; everything set aside stays in <paramref name="backupDir"/>.
+    /// </summary>
+    public static EuleDatabase OpenOrRepair(string path, string backupDir, out Repair repair)
+    {
+        repair = Repair.None;
+        try
+        {
+            return new EuleDatabase(path);
+        }
+        catch (SqliteException ex) when (IsCorrupt(ex))
+        {
+        }
+
+        MoveAside(backupDir, path + "-wal", path + "-shm");
+        repair = Repair.JournalSetAside;
+        try
+        {
+            return new EuleDatabase(path);
+        }
+        catch (SqliteException ex) when (IsCorrupt(ex))
+        {
+        }
+
+        MoveAside(backupDir, path, path + "-wal", path + "-shm");
+        repair = Repair.StartedFresh;
+        return new EuleDatabase(path);
+    }
+
+    // SQLITE_CORRUPT (11) and SQLITE_NOTADB (26)
+    static bool IsCorrupt(SqliteException ex) => ex.SqliteErrorCode is 11 or 26;
+
+    static void MoveAside(string backupDir, params string[] files)
+    {
+        Directory.CreateDirectory(backupDir);
+        foreach (string f in files)
+            if (File.Exists(f))
+                File.Move(f, Path.Combine(backupDir, Path.GetFileName(f)), overwrite: true);
     }
 
     void Migrate()
@@ -241,7 +300,19 @@ public sealed class EuleDatabase : IDisposable
         Exec("INSERT INTO meta(key, value) VALUES($k, $v) ON CONFLICT(key) DO UPDATE SET value = $v", null,
             ("$k", key), ("$v", value));
 
-    public void Dispose() => conn.Dispose();
+    /// <summary>Merges the journal into the database file and closes it, so nothing stale is left behind.</summary>
+    public void Dispose()
+    {
+        try
+        {
+            Exec("PRAGMA wal_checkpoint(TRUNCATE)");
+        }
+        catch (SqliteException)
+        {
+            // Closing still finishes the job as well as it can.
+        }
+        conn.Dispose();
+    }
 
     // ---- helpers
 
