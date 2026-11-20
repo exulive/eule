@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.git/
+.vs/
+.claude/
+publish/
+releases/
+tests/
+src/Eule.App/
+src/Eule.Core/
+**/*.db
+**/*.db-*

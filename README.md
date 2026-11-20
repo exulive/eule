@@ -66,6 +66,17 @@ vpk upload github --repoUrl https://github.com/exulive/eule --publish --releaseN
 ```
 Kurulu kopyalar günde bir kez denetler, yeni sürümü indirir ve Eule kapanınca sessizce kurar.
 
+## Sunucu (eule.adacreative.net)
+
+Not ve dikte API'si: `src/Eule.Server` (ASP.NET Core 8 + PostgreSQL), Türkçe tarih/saat anlama: `src/Eule.Parsing`,
+testleri: `tests/Eule.Server.Tests`. Coolify'a kurulum adım adım: **[docs/SUNUCU-KURULUM.md](docs/SUNUCU-KURULUM.md)**.
+
+Yerelde denemek (SQLite ile, ayar gerekmez):
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Development"; dotnet run --project src/Eule.Server
+```
+
 ## Dil
 
 Bütün metinler `src/Eule.Core/Localization/L.cs` içinde, Türkçe ve İngilizce yan yana.

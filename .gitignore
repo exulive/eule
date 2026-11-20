@@ -488,3 +488,6 @@ $RECYCLE.BIN/
 # Eule build output
 /publish/
 /releases/
+
+# Local development database of the API
+**/eule-dev.db*

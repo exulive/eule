@@ -1,0 +1,102 @@
+using System.Reflection;
+using System.Threading.RateLimiting;
+using Eule.Server;
+using Eule.Server.Agents;
+using Eule.Server.Auth;
+using Eule.Server.Data;
+using Eule.Server.Notes;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ---- configuration (read lazily through DI, so test hosts and environment variables can override it)
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IConfiguration>().GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions());
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddDbContext<EuleDbContext>((sp, o) => Database.Configure(o, sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<PasswordHasher<User>>();
+builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<IDictationAgent, SaveNoteAgent>();
+
+// Admin commands run before anything web-related: `dotnet Eule.Server.dll user add ...`
+if (args.Length > 0 && args[0] == "user")
+{
+    using var cliHost = builder.Build();
+    await Database.PrepareAsync(cliHost.Services);
+    return await UserCli.RunAsync(cliHost.Services, args[1..]);
+}
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<JwtOptions, TimeProvider>((o, jwt, time) =>
+    {
+        var skew = TimeSpan.FromSeconds(30);
+        o.MapInboundClaims = false;
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = jwt.Key(),
+            ValidateIssuerSigningKey = true,
+            ClockSkew = skew,
+            // Check expiry with the same clock that issued the token (TokenService uses TimeProvider too).
+            LifetimeValidator = (notBefore, expires, _, _) =>
+            {
+                var now = time.GetUtcNow().UtcDateTime;
+                return (notBefore == null || notBefore.Value <= now + skew) && (expires == null || expires.Value > now - skew);
+            },
+        };
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddProblemDetails();
+
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Sign-in: 10 tries a minute per address (RateLimit:LoginPerMinute), against password guessing.
+    o.AddPolicy("login", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = ctx.RequestServices.GetRequiredService<IConfiguration>().GetValue("RateLimit:LoginPerMinute", 10),
+            Window = TimeSpan.FromMinutes(1),
+        }));
+    // Everything else: 120 requests a minute per user.
+    o.AddPolicy("user", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+});
+
+// Coolify puts Traefik in front: trust its X-Forwarded-* headers for the real client address and https.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
+var app = builder.Build();
+app.Services.GetRequiredService<JwtOptions>().Validate(); // refuse to start without a real signing key
+await Database.PrepareAsync(app.Services);
+
+app.UseForwardedHeaders();
+app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
+
+string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+app.MapGet("/", () => Results.Text($"Eule API {version}"));
+app.MapGet("/health", async (EuleDbContext db) =>
+    await db.Database.CanConnectAsync()
+        ? Results.Ok(new { status = "ok", version })
+        : Results.Problem(statusCode: 503, title: "database_unreachable"));
+app.MapAuth();
+app.MapNotes();
+
+app.Run();
+return 0;
+
+public partial class Program;
