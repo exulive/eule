@@ -71,14 +71,16 @@ public partial class WidgetWindow : Window
     void FadeTools(double to) =>
         Tools.BeginAnimation(OpacityProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(160)));
 
+    /// <summary>Drag moves the widget; a click (no movement) talks to the owl: it opens the note bubble.</summary>
     void OnCardMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2)
+        double left = Left, top = Top;
+        try { DragMove(); } catch (InvalidOperationException) { return; }
+        if (Math.Abs(Left - left) < 3 && Math.Abs(Top - top) < 3)
         {
-            shell.OpenSettings();
+            shell.OpenNote();
             return;
         }
-        try { DragMove(); } catch (InvalidOperationException) { return; }
         host.SaveUiState(s => { s.WidgetLeft = Left; s.WidgetTop = Top; });
     }
 

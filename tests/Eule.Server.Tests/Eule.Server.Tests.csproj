@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Eule.Server\Eule.Server.csproj" />
     <ProjectReference Include="..\..\src\Eule.Parsing\Eule.Parsing.csproj" />
+    <ProjectReference Include="..\..\src\Eule.Core\Eule.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,7 +10,10 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+// Admin commands ("user add …") have their own flags (--name, --password-stdin) that the configuration parser would
+// misread, e.g. swallowing the next word as a value. In that mode only "--key=value" settings reach the configuration.
+bool adminCommand = args.Length > 0 && args[0] == "user";
+var builder = WebApplication.CreateBuilder(adminCommand ? args.Where(a => a.StartsWith("--") && a.Contains('=')).ToArray() : args);
 
 // ---- configuration (read lazily through DI, so test hosts and environment variables can override it)
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IConfiguration>().GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions());
@@ -21,7 +24,7 @@ builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<IDictationAgent, SaveNoteAgent>();
 
 // Admin commands run before anything web-related: `dotnet Eule.Server.dll user add ...`
-if (args.Length > 0 && args[0] == "user")
+if (adminCommand)
 {
     using var cliHost = builder.Build();
     await Database.PrepareAsync(cliHost.Services);
@@ -51,6 +54,8 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     });
 builder.Services.AddAuthorization();
 builder.Services.AddProblemDetails();
+// A malformed request body is the client's mistake: answer 400 in every environment, never 500.
+builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = false);
 
 builder.Services.AddRateLimiter(o =>
 {

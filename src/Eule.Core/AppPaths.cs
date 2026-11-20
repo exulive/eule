@@ -21,6 +21,8 @@ public sealed class AppPaths(string dataDir, string legacyDir)
     public string SettingsFile => Path.Combine(DataDir, "settings.json");
     public string DatabaseFile => Path.Combine(DataDir, "eule.db");
     public string LogDir => Path.Combine(DataDir, "logs");
+    /// <summary>The signed-in account, encrypted for the current Windows user.</summary>
+    public string AccountFile => Path.Combine(DataDir, "account.dat");
 
     /// <summary>Data folder of the earlier "Oturma Sayacı" prototype.</summary>
     public string LegacyDir { get; } = legacyDir;

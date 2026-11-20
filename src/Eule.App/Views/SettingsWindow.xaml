@@ -29,6 +29,18 @@
                     </StackPanel>
                 </DockPanel>
 
+                <!-- Account -->
+                <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.account}" />
+                <Border Style="{StaticResource Eule.Row}">
+                    <DockPanel>
+                        <ui:Button x:Name="AccountButton" DockPanel.Dock="Right" VerticalAlignment="Center" Padding="14,6" />
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock x:Name="AccountTitle" Style="{StaticResource Eule.RowTitle}" />
+                            <TextBlock x:Name="AccountDesc" Style="{StaticResource Eule.RowDesc}" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
                 <!-- Rhythm -->
                 <TextBlock Style="{StaticResource Eule.SectionTitle}" Text="{l:T set.rhythm}" />
                 <WrapPanel x:Name="Presets" Margin="0,0,0,8">

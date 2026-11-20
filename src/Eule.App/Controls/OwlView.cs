@@ -17,6 +17,8 @@ public enum OwlMood
     Drowsy,
     /// <summary>Eyes closed, slow breathing: on a break.</summary>
     Sleeping,
+    /// <summary>Looking up while the server works on a note.</summary>
+    Thinking,
 }
 
 /// <summary>
@@ -55,6 +57,9 @@ public sealed class OwlView : Viewbox
     readonly List<ScaleTransform> pupilScales = [];
     readonly ScaleTransform breathe = new(1, 1, 50, 58);
     readonly TranslateTransform hop = new();
+    readonly RotateTransform nod = new(0, 50, 72);
+    readonly TranslateTransform shake = new();
+    readonly List<TranslateTransform> pupilShift = [];
     readonly TextBlock zzz;
     readonly DispatcherTimer blinkTimer = new();
     static readonly Random Rng = new();
@@ -78,7 +83,7 @@ public sealed class OwlView : Viewbox
         };
 
         owl = new Canvas { Width = 100, Height = 100 };
-        owl.RenderTransform = new TransformGroup { Children = { breathe, hop } };
+        owl.RenderTransform = new TransformGroup { Children = { breathe, hop, nod, shake } };
 
         // Head with two ear tufts; one closed path so it reads as a single shape.
         var head = new Path
@@ -94,8 +99,10 @@ public sealed class OwlView : Viewbox
             openEyes.Children.Add(Circle(cx, 48, 8.5, "Eule.OwlEye"));
             var pupil = Circle(cx, 48, 4.2, "Eule.OwlBody");
             var scale = new ScaleTransform(1, 1, 4.2, 4.2); // centre of the pupil's own box
+            var shift = new TranslateTransform();
             pupilScales.Add(scale);
-            pupil.RenderTransform = scale;
+            pupilShift.Add(shift);
+            pupil.RenderTransform = new TransformGroup { Children = { scale, shift } };
             openEyes.Children.Add(pupil);
             openEyes.Children.Add(Circle(cx + 1.6, 46.4, 1.3, "Eule.OwlEye"));
         }
@@ -188,6 +195,13 @@ public sealed class OwlView : Viewbox
         closedEyes.Visibility = sleeping ? Visibility.Visible : Visibility.Collapsed;
         eyeScale.ScaleY = Mood == OwlMood.Drowsy ? 0.42 : 1;
         foreach (var s in pupilScales) Animate(s, Mood == OwlMood.Alert ? 1.25 : 1, 260);
+        // Thinking: the pupils drift up and to the side, as if working something out.
+        foreach (var t in pupilShift)
+        {
+            var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            t.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(Mood == OwlMood.Thinking ? -2.6 : 0, TimeSpan.FromMilliseconds(320)) { EasingFunction = ease });
+            t.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(Mood == OwlMood.Thinking ? 1.6 : 0, TimeSpan.FromMilliseconds(320)) { EasingFunction = ease });
+        }
         zzz.Opacity = 0;
 
         switch (Mood)
@@ -222,6 +236,29 @@ public sealed class OwlView : Viewbox
                 zzz.BeginAnimation(OpacityProperty, z);
                 break;
         }
+    }
+
+    /// <summary>Two small nods: "yes, got it".</summary>
+    public void Nod()
+    {
+        var a = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(720) };
+        var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromPercent(0)));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(9, KeyTime.FromPercent(0.22), ease));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(-1, KeyTime.FromPercent(0.45), ease));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(7, KeyTime.FromPercent(0.68), ease));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromPercent(1), ease));
+        nod.BeginAnimation(RotateTransform.AngleProperty, a); // pivots around the chin (50, 72)
+    }
+
+    /// <summary>A quick head shake: "that didn't work".</summary>
+    public void Shake()
+    {
+        var a = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(560) };
+        double[] xs = [0, -4, 4, -3, 3, -1.5, 0];
+        for (int i = 0; i < xs.Length; i++)
+            a.KeyFrames.Add(new EasingDoubleKeyFrame(xs[i], KeyTime.FromPercent(i / (double)(xs.Length - 1))));
+        shake.BeginAnimation(TranslateTransform.XProperty, a);
     }
 
     void ScheduleBlink()

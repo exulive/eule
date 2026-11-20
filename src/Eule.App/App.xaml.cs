@@ -47,7 +47,11 @@ public partial class App : Application
             return;
         }
 
-        singleInstance = new Mutex(true, "Eule_SingleInstance", out bool created);
+        // One Eule per data folder: a developer copy on its own EULE_DATA_DIR may run next to the installed one.
+        string mutexName = "Eule_SingleInstance" + (paths.IsOverridden
+            ? "_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(paths.DataDir.ToLowerInvariant())))[..12]
+            : "");
+        singleInstance = new Mutex(true, mutexName, out bool created);
         if (!created)
         {
             MessageBox.Show(L.T("app.running"), "Eule", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -72,6 +76,7 @@ public partial class App : Application
         if (e.Args.Contains("--stats")) shell.OpenStats();
         if (e.Args.Contains("--break")) host.Do(x => x.StartBreakNow());
         if (e.Args.Contains("--eye")) shell.PreviewEyeBreak();
+        if (e.Args.Contains("--note")) shell.OpenNote();
     }
 
     /// <summary>Starts a fresh copy and closes this one (used after a language change).</summary>

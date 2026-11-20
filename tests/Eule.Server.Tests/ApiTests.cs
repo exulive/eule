@@ -116,6 +116,15 @@ public class ApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Malformed_body_is_a_bad_request_not_a_server_error()
+    {
+        var c = factory.CreateClient();
+        var res = await c.PostAsync("/api/auth/login",
+            new StringContent("""{"email":"a@b.c","password":{"value":"x"}}""", System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
     public async Task Api_needs_a_token()
     {
         var c = factory.CreateClient();

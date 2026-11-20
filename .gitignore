@@ -491,3 +491,6 @@ $RECYCLE.BIN/
 
 # Local development database of the API
 **/eule-dev.db*
+
+# Claude Code local settings
+.claude/

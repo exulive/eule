@@ -1,0 +1,43 @@
+<ui:FluentWindow x:Class="Eule.App.Views.LoginWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:c="clr-namespace:Eule.App.Controls"
+                 xmlns:l="clr-namespace:Eule.App"
+                 Title="{l:T login.title}" Width="440" Height="600" ResizeMode="NoResize"
+                 WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
+                 WindowCornerPreference="Round" FontFamily="{StaticResource Eule.Font}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Title="Eule" ShowMaximize="False" ShowMinimize="False" />
+
+        <StackPanel Grid.Row="1" Margin="40,0,40,32" VerticalAlignment="Center">
+            <c:OwlView x:Name="Owl" Width="104" Height="104" Progress="0.75" />
+            <TextBlock Text="{l:T login.title}" FontSize="24" FontWeight="Light" Margin="0,22,0,0"
+                       HorizontalAlignment="Center" Foreground="{DynamicResource Eule.Ink}" />
+            <TextBlock Text="{l:T login.text}" FontSize="13" Margin="0,8,0,24" TextAlignment="Center" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Eule.Muted}" />
+
+            <ui:TextBox x:Name="EmailBox" PlaceholderText="{l:T login.email}" ClearButtonEnabled="False" />
+            <ui:PasswordBox x:Name="PasswordBox" PlaceholderText="{l:T login.password}" Margin="0,10,0,0" />
+
+            <TextBlock x:Name="ErrorText" FontSize="12.5" Margin="2,10,0,0" TextWrapping="Wrap" Visibility="Collapsed"
+                       Foreground="{DynamicResource Eule.Warn}" />
+
+            <Grid Margin="0,18,0,0">
+                <ui:Button x:Name="SubmitButton" Appearance="Primary" HorizontalAlignment="Stretch" Padding="0,9"
+                           Content="{l:T login.submit}" IsDefault="True" />
+                <ui:ProgressRing x:Name="Busy" IsIndeterminate="True" Width="20" Height="20" Visibility="Collapsed" />
+            </Grid>
+            <ui:Button x:Name="LaterButton" Appearance="Transparent" HorizontalAlignment="Center" Margin="0,8,0,0"
+                       Content="{l:T login.later}" />
+
+            <TextBlock Text="{l:T login.noAccount}" FontSize="11.5" Margin="0,14,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Eule.Muted}" />
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

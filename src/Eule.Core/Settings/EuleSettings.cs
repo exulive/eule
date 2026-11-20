@@ -80,8 +80,14 @@ public sealed class EuleSettings
     public EyeBreakSettings EyeBreak { get; set; } = new();
     public WorkHoursSettings WorkHours { get; set; } = new();
 
+    /// <summary>The Eule server for notes and dictation.</summary>
+    public string ServerUrl { get; set; } = DefaultServerUrl;
+    public const string DefaultServerUrl = "https://eule.adacreative.net/";
+
     public AppTheme Theme { get; set; } = AppTheme.System;
     public string Language { get; set; } = "tr";
+    /// <summary>Pre-filled on the sign-in window. Not a secret.</summary>
+    public string? LastEmail { get; set; }
     public double? WidgetLeft { get; set; }
     public double? WidgetTop { get; set; }
 
@@ -108,6 +114,10 @@ public sealed class EuleSettings
         if (!Enum.IsDefined(Level)) Level = ReminderLevel.Balanced;
         if (!Enum.IsDefined(Theme)) Theme = AppTheme.System;
         if (Language is not ("tr" or "en")) Language = "tr";
+        if (!Uri.TryCreate(ServerUrl, UriKind.Absolute, out var server) || server.Scheme is not ("https" or "http"))
+            ServerUrl = DefaultServerUrl;
+        else if (!ServerUrl.EndsWith('/'))
+            ServerUrl += "/";
         return this;
     }
 

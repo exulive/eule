@@ -13,10 +13,13 @@ public sealed record DailyStats(
 
 public enum Counter { Breaks, AwayBreaks, Skipped, Snoozed, EmergencyExits, EyeBreaks }
 
+/// <summary>A dictation not yet confirmed by the server. <see cref="ClientId"/> makes resending safe.</summary>
+public sealed record OutboxItem(Guid ClientId, string Text, string Source, DateTime CreatedAt, int Attempts = 0);
+
 /// <summary>Local SQLite store: per-day counters, per-hour sitting time (for the heat map) and an event log.</summary>
 public sealed class EuleDatabase : IDisposable
 {
-    const int SchemaVersion = 2;
+    const int SchemaVersion = 3;
     readonly SqliteConnection conn;
 
     public EuleDatabase(string path)
@@ -40,6 +43,46 @@ public sealed class EuleDatabase : IDisposable
                 PRAGMA user_version = 2;
                 """);
         }
+        if (version < 3)
+        {
+            // v3: dictations waiting to reach the server (no internet, server down, signed out).
+            Exec("""
+                CREATE TABLE IF NOT EXISTS outbox(
+                    client_id  TEXT PRIMARY KEY,
+                    text       TEXT NOT NULL,
+                    source     TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    attempts   INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT);
+                PRAGMA user_version = 3;
+                """);
+        }
+    }
+
+    // ------------------------------------------------------------------ outbox
+
+    public void OutboxAdd(OutboxItem item) =>
+        Exec("INSERT OR IGNORE INTO outbox(client_id, text, source, created_at) VALUES($id, $t, $s, $c)", null,
+            ("$id", item.ClientId.ToString()), ("$t", item.Text), ("$s", item.Source),
+            ("$c", item.CreatedAt.ToString("O", CultureInfo.InvariantCulture)));
+
+    public void OutboxRemove(Guid clientId) =>
+        Exec("DELETE FROM outbox WHERE client_id = $id", null, ("$id", clientId.ToString()));
+
+    public void OutboxFailed(Guid clientId, string error) =>
+        Exec("UPDATE outbox SET attempts = attempts + 1, last_error = $e WHERE client_id = $id", null,
+            ("$id", clientId.ToString()), ("$e", error));
+
+    /// <summary>Waiting dictations, oldest first.</summary>
+    public List<OutboxItem> OutboxPending()
+    {
+        using var cmd = Command("SELECT client_id, text, source, created_at, attempts FROM outbox ORDER BY created_at", null);
+        using var r = cmd.ExecuteReader();
+        var list = new List<OutboxItem>();
+        while (r.Read())
+            list.Add(new OutboxItem(Guid.Parse(r.GetString(0)), r.GetString(1), r.GetString(2),
+                DateTime.Parse(r.GetString(3), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind), r.GetInt32(4)));
+        return list;
     }
 
     void CreateV1()

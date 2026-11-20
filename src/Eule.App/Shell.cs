@@ -34,7 +34,7 @@ public sealed class Shell : IDisposable
         WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent,
         ShowInTaskbar = false, Width = 1, Height = 1, Left = -10000, Top = -10000, Topmost = true,
     };
-    MenuItem miStatus = null!, miToday = null!, miBreak = null!, miPause = null!, miReset = null!, miWidget = null!;
+    MenuItem miStatus = null!, miToday = null!, miBreak = null!, miPause = null!, miReset = null!, miWidget = null!, miAccount = null!;
 
     readonly UpdateService updates;
     readonly System.Windows.Threading.DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -83,9 +83,61 @@ public sealed class Shell : IDisposable
             updateTimer.Start();
         }
 
-        if (host.FirstRun) OpenWelcome();
+        host.Api.SignedOut += () => Application.Current.Dispatcher.BeginInvoke(() =>
+        {
+            tray.Notify(L.T("note.signedOutTitle"), L.T("note.signedOutText"));
+            Refresh();
+            settingsWindow?.RefreshAccount();
+        });
+        host.Dictations.DeliveredLater += r => Application.Current.Dispatcher.BeginInvoke(() =>
+            tray.Notify(L.T("note.deliveredTitle"), r.Reply));
+
+        // Sign in first (first launch and whenever there is no account), then the welcome tour on first launch.
+        if (!host.Api.IsSignedIn) OpenLogin(after: host.FirstRun ? OpenWelcome : null);
+        else if (host.FirstRun) OpenWelcome();
         else if (!host.Settings.ShowWidget)
             tray.Notify(L.T("note.hereTitle"), L.T("note.hereText"));
+        _ = host.FlushOutboxAsync();
+    }
+
+    // ------------------------------------------------------------------ account and notes
+
+    LoginWindow? loginWindow;
+    NoteBubble? noteBubble;
+
+    public void OpenLogin(Action? after = null)
+    {
+        if (loginWindow != null) { loginWindow.Activate(); return; }
+        loginWindow = new LoginWindow(host);
+        loginWindow.Closed += (_, _) =>
+        {
+            loginWindow = null;
+            settingsWindow?.RefreshAccount();
+            Refresh();
+            after?.Invoke();
+        };
+        loginWindow.Show();
+        loginWindow.Activate();
+    }
+
+    public async Task SignOutAsync()
+    {
+        await host.Api.LogoutAsync();
+        Log.Information("Çıkış yapıldı");
+        settingsWindow?.RefreshAccount();
+        Refresh();
+    }
+
+    /// <summary>The owl's bubble for a new note, next to the widget.</summary>
+    public void OpenNote()
+    {
+        if (noteBubble != null) { noteBubble.Activate(); return; }
+        if (!host.Api.IsSignedIn) { OpenLogin(after: () => { if (host.Api.IsSignedIn) OpenNote(); }); return; }
+        noteBubble = new NoteBubble(host);
+        noteBubble.SignInRequested += () => OpenLogin();
+        noteBubble.Closed += (_, _) => noteBubble = null;
+        noteBubble.Show();
+        noteBubble.PlaceNear(widget.IsVisible ? new Rect(widget.Left, widget.Top, widget.ActualWidth, widget.ActualHeight) : null);
     }
 
     // ------------------------------------------------------------------ state → surfaces
@@ -114,6 +166,8 @@ public sealed class Shell : IDisposable
         miPause.IsEnabled = e.Phase is Phase.Working or Phase.Paused or Phase.Deferred or Phase.BreakDue or Phase.Away;
         miReset.IsEnabled = e.Phase is not Phase.Break;
         miWidget.IsChecked = widget.IsVisible;
+        var account = host.Api.Account;
+        miAccount.Header = account == null ? L.T("menu.signIn") : $"{L.T("set.signOut")} ({account.Email})";
     }
 
     void OpenBreakScreens(BreakEngine e)
@@ -256,6 +310,8 @@ public sealed class Shell : IDisposable
         }
         settingsWindow = new SettingsWindow(host, updates);
         settingsWindow.OpenStatsRequested += OpenStats;
+        settingsWindow.SignInRequested += () => OpenLogin();
+        settingsWindow.SignOutRequested += () => _ = SignOutAsync();
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show();
         settingsWindow.Activate();
@@ -322,8 +378,16 @@ public sealed class Shell : IDisposable
         var miSettings = Item(L.T("menu.settings"), "", OpenSettings);
         var miExit = Item(L.T("menu.exit"), "", Exit);
 
+        var miNote = Item(L.T("menu.note"), "", OpenNote);
+        miAccount = Item(L.T("menu.signIn"), "", () =>
+        {
+            if (host.Api.IsSignedIn) _ = SignOutAsync(); else OpenLogin();
+        });
+
         menu.Items.Add(miStatus);
         menu.Items.Add(miToday);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(miNote);
         menu.Items.Add(new Separator());
         menu.Items.Add(miBreak);
         menu.Items.Add(miPause);
@@ -332,6 +396,7 @@ public sealed class Shell : IDisposable
         menu.Items.Add(miWidget);
         menu.Items.Add(miStats);
         menu.Items.Add(miSettings);
+        menu.Items.Add(miAccount);
         menu.Items.Add(new Separator());
         menu.Items.Add(miExit);
         menu.Closed += (_, _) => menuHost.Hide();

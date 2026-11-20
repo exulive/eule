@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
+using System.Net.Http;
 using Eule.Core;
+using Eule.Core.Cloud;
 using Eule.Core.Engine;
 using Eule.Core.Settings;
 using Eule.Core.Storage;
@@ -95,6 +97,8 @@ public sealed class AppHost : IDisposable
             SettingsStore.Save(Settings);
         }
 
+        StartCloud();
+
         Engine = new BreakEngine(Settings);
         Stats = new StatsRecorder(Database, () => DateTime.Now);
         Stats.Attach(Engine);
@@ -121,6 +125,45 @@ public sealed class AppHost : IDisposable
         Engine.Tick(new EnvironmentSnapshot(DateTime.Now, IdleInput.Seconds(), Busy), seconds);
         if (++ticks % 30 == 0) Stats.Flush();
         Updated?.Invoke();
+    }
+
+    // ------------------------------------------------------------------ server (notes, dictation)
+
+    public EuleApiClient Api { get; private set; } = null!;
+    public DictationService Dictations { get; private set; } = null!;
+    DispatcherTimer? flushTimer;
+
+    void StartCloud()
+    {
+        var http = new HttpClient { BaseAddress = new Uri(Settings.ServerUrl), Timeout = TimeSpan.FromSeconds(15) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd($"Eule/{UpdateService.CurrentVersion}");
+        Api = new EuleApiClient(http, new DpapiAccountStore(paths.AccountFile));
+        Dictations = new DictationService(Api, Database);
+        Api.SignedOut += () => Log.Information("Sunucu oturumu sona erdi");
+        Api.SignedIn += () => _ = FlushOutboxAsync();
+        Log.Information("Sunucu: {Server}, oturum: {Account}", Settings.ServerUrl, Api.Account?.Email ?? "yok");
+
+        // Notes that could not be sent go out on their own: every minute and whenever the network comes back.
+        flushTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        flushTimer.Tick += (_, _) => _ = FlushOutboxAsync();
+        flushTimer.Start();
+        System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += (_, e) =>
+        {
+            if (e.IsAvailable) System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => _ = FlushOutboxAsync());
+        };
+    }
+
+    public async Task FlushOutboxAsync()
+    {
+        try
+        {
+            int sent = await Dictations.FlushAsync();
+            if (sent > 0) Log.Information("Bekleyen {Count} not sunucuya gönderildi", sent);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Bekleyen notlar gönderilemedi");
+        }
     }
 
     /// <summary>Runs a user command against the engine and refreshes the UI.</summary>
@@ -162,6 +205,7 @@ public sealed class AppHost : IDisposable
     public void Dispose()
     {
         timer?.Stop();
+        flushTimer?.Stop();
         try { Stats?.Flush(final: true); } catch (Exception ex) { Log.Error(ex, "İstatistik yazılamadı"); }
         Database?.Dispose();
     }

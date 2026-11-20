@@ -22,6 +22,21 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     Velopack.UpdateInfo? pendingUpdate;
 
     public event Action? OpenStatsRequested;
+    public event Action? SignInRequested;
+    public event Action? SignOutRequested;
+
+    /// <summary>Shows who is signed in (or that nobody is) and how many notes are still waiting to be sent.</summary>
+    public void RefreshAccount()
+    {
+        var account = host.Api.Account;
+        int pending = host.Dictations.PendingCount;
+        AccountTitle.Text = account == null ? L.T("set.signedOut") : L.F("set.signedInAs", account.Email);
+        AccountDesc.Text = pending > 0 ? L.F("set.pending", pending)
+            : account == null ? L.T("set.signedOutDesc")
+            : host.Api.Server?.Host ?? "";
+        AccountButton.Content = L.T(account == null ? "set.signIn" : "set.signOut");
+        AccountButton.Appearance = account == null ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
+    }
 
     public SettingsWindow(AppHost host, UpdateService updates)
     {
@@ -50,6 +65,10 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         HoursEnd.LostFocus += (_, _) => Changed();
         OpenFolder.Click += (_, _) => Process.Start("explorer.exe", AppPaths.Default.DataDir);
         StatsButton.Click += (_, _) => OpenStatsRequested?.Invoke();
+        AccountButton.Click += (_, _) =>
+        {
+            if (host.Api.IsSignedIn) SignOutRequested?.Invoke(); else SignInRequested?.Invoke();
+        };
         RestartButton.Click += (_, _) => { saveTimer.Stop(); Save(); App.Restart(); };
         UpdateButton.Click += async (_, _) => await OnUpdateClick();
 
@@ -66,6 +85,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
         SyncFromSettings();
         RefreshHeader();
+        RefreshAccount();
     }
 
     void BuildDayChips()
