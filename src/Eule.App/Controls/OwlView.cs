@@ -19,6 +19,8 @@ public enum OwlMood
     Sleeping,
     /// <summary>Looking up while the server works on a note.</summary>
     Thinking,
+    /// <summary>Wide eyes, all ears: recording a dictation.</summary>
+    Listening,
 }
 
 /// <summary>
@@ -194,7 +196,7 @@ public sealed class OwlView : Viewbox
         openEyes.Visibility = sleeping ? Visibility.Collapsed : Visibility.Visible;
         closedEyes.Visibility = sleeping ? Visibility.Visible : Visibility.Collapsed;
         eyeScale.ScaleY = Mood == OwlMood.Drowsy ? 0.42 : 1;
-        foreach (var s in pupilScales) Animate(s, Mood == OwlMood.Alert ? 1.25 : 1, 260);
+        foreach (var s in pupilScales) Animate(s, Mood switch { OwlMood.Alert => 1.25, OwlMood.Listening => 1.35, _ => 1 }, 260);
         // Thinking: the pupils drift up and to the side, as if working something out.
         foreach (var t in pupilShift)
         {
@@ -207,6 +209,8 @@ public sealed class OwlView : Viewbox
         switch (Mood)
         {
             case OwlMood.Awake:
+            case OwlMood.Listening:
+            case OwlMood.Thinking:
                 ScheduleBlink();
                 break;
 
@@ -270,7 +274,7 @@ public sealed class OwlView : Viewbox
     void Blink()
     {
         blinkTimer.Stop();
-        if (Mood is not (OwlMood.Awake or OwlMood.Alert)) return;
+        if (Mood is not (OwlMood.Awake or OwlMood.Alert or OwlMood.Listening or OwlMood.Thinking)) return;
         var anim = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(170) };
         anim.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(0)));
         anim.KeyFrames.Add(new EasingDoubleKeyFrame(0.08, KeyTime.FromPercent(0.45)));

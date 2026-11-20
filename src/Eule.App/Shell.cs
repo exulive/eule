@@ -57,6 +57,7 @@ public sealed class Shell : IDisposable
         tray.RightClick += () => ShowMenu(null);
 
         widget = new WidgetWindow(host, this);
+        widget.Collapsed += OnWidgetCollapsed;
         if (host.Settings.ShowWidget) widget.Show();
 
         host.Updated += Refresh;
@@ -103,7 +104,8 @@ public sealed class Shell : IDisposable
     // ------------------------------------------------------------------ account and notes
 
     LoginWindow? loginWindow;
-    NoteBubble? noteBubble;
+    /// <summary>The widget is hidden by the user but shown while a note is being taken.</summary>
+    bool widgetShownForNote;
 
     public void OpenLogin(Action? after = null)
     {
@@ -128,16 +130,30 @@ public sealed class Shell : IDisposable
         Refresh();
     }
 
-    /// <summary>The owl's bubble for a new note, next to the widget.</summary>
+    /// <summary>"Write a note" from the tray: the widget opens straight into typing (shown just for this if hidden).</summary>
     public void OpenNote()
     {
-        if (noteBubble != null) { noteBubble.Activate(); return; }
         if (!host.Api.IsSignedIn) { OpenLogin(after: () => { if (host.Api.IsSignedIn) OpenNote(); }); return; }
-        noteBubble = new NoteBubble(host);
-        noteBubble.SignInRequested += () => OpenLogin();
-        noteBubble.Closed += (_, _) => noteBubble = null;
-        noteBubble.Show();
-        noteBubble.PlaceNear(widget.IsVisible ? new Rect(widget.Left, widget.Top, widget.ActualWidth, widget.ActualHeight) : null);
+        if (!widget.IsVisible)
+        {
+            widgetShownForNote = true;
+            ShowWidgetWindow(true);
+        }
+        widget.OpenKeyboard();
+    }
+
+    /// <summary>Developer preview (--dictate): opens the microphone mode.</summary>
+    public void OpenDictation()
+    {
+        if (!widget.IsVisible) { widgetShownForNote = true; ShowWidgetWindow(true); }
+        widget.StartDictation();
+    }
+
+    void OnWidgetCollapsed()
+    {
+        if (!widgetShownForNote) return;
+        widgetShownForNote = false;
+        if (!host.Settings.ShowWidget && !widgetShownForPrompt) ShowWidgetWindow(false);
     }
 
     // ------------------------------------------------------------------ state → surfaces

@@ -68,6 +68,8 @@ public sealed class BusyDetector
     {
         foreach (string name in key.GetSubKeyNames())
         {
+            // Eule's own dictation is not a call. Desktop apps are listed by path with '#' for '\'.
+            if (name.EndsWith("#Eule.exe", StringComparison.OrdinalIgnoreCase)) continue;
             using var sub = key.OpenSubKey(name);
             if (sub == null) continue;
             if (sub.GetValue("LastUsedTimeStart") is long start && start > 0 &&

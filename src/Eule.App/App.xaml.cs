@@ -77,6 +77,7 @@ public partial class App : Application
         if (e.Args.Contains("--break")) host.Do(x => x.StartBreakNow());
         if (e.Args.Contains("--eye")) shell.PreviewEyeBreak();
         if (e.Args.Contains("--note")) shell.OpenNote();
+        if (e.Args.Contains("--dictate")) shell.OpenDictation();
     }
 
     /// <summary>Starts a fresh copy and closes this one (used after a language change).</summary>

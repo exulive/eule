@@ -21,6 +21,13 @@ public sealed class AppPaths(string dataDir, string legacyDir)
     public string SettingsFile => Path.Combine(DataDir, "settings.json");
     public string DatabaseFile => Path.Combine(DataDir, "eule.db");
     public string LogDir => Path.Combine(DataDir, "logs");
+    /// <summary>
+    /// Large downloaded files (the speech model). Local, not roaming, and outside the install folder so updates keep it.
+    /// Shared by every data folder, so a developer copy does not download it again.
+    /// </summary>
+    public static string ModelDir =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Eule-models");
+
     /// <summary>The signed-in account, encrypted for the current Windows user.</summary>
     public string AccountFile => Path.Combine(DataDir, "account.dat");
 

@@ -130,6 +130,8 @@ public sealed class AppHost : IDisposable
     // ------------------------------------------------------------------ server (notes, dictation)
 
     public EuleApiClient Api { get; private set; } = null!;
+    /// <summary>Dictation: speech to text on this computer.</summary>
+    public Speech.SpeechService Speech { get; } = new(AppPaths.ModelDir);
     public DictationService Dictations { get; private set; } = null!;
     DispatcherTimer? flushTimer;
 
