@@ -92,6 +92,18 @@ public class ApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Web_app_is_served_at_root_with_a_strict_policy()
+    {
+        var c = factory.CreateClient();
+        var res = await c.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal("text/html", res.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("login-form", await res.Content.ReadAsStringAsync());
+        Assert.Contains("script-src 'self'", res.Headers.GetValues("Content-Security-Policy").Single());
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/app.js")).StatusCode);
+    }
+
+    [Fact]
     public async Task Wrong_password_and_unknown_user_look_the_same()
     {
         await factory.AddUserAsync("known@test.local", "correct horse battery");

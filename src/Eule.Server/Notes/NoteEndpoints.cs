@@ -86,7 +86,12 @@ public static class NoteEndpoints
                 var sinceUtc = s.Kind == DateTimeKind.Utc ? s : s.ToUniversalTime();
                 q = q.Where(n => n.UpdatedAt > sinceUtc);
             }
-            else q = q.Where(n => n.DeletedAt == null);
+            else
+            {
+                // The current notes: the newest 1000, so a long history never hides today's notes.
+                var current = await q.Where(n => n.DeletedAt == null).OrderByDescending(n => n.CreatedAt).Take(1000).ToListAsync(ct);
+                return Results.Ok(current.Select(NoteDto.From));
+            }
             var list = await q.OrderBy(n => n.UpdatedAt).Take(1000).ToListAsync(ct);
             return Results.Ok(list.Select(NoteDto.From));
         });

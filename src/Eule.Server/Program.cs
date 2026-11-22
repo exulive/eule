@@ -88,12 +88,30 @@ await Database.PrepareAsync(app.Services);
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
+// The web app (wwwroot) keeps tokens in the browser: allow only our own scripts, no framing.
+app.Use((ctx, next) =>
+{
+    var h = ctx.Response.Headers;
+    h["X-Content-Type-Options"] = "nosniff";
+    h["Referrer-Policy"] = "no-referrer";
+    h["X-Frame-Options"] = "DENY";
+    h["Content-Security-Policy"] =
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; " +
+        "frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+    return next();
+});
+app.UseDefaultFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // Always revalidate, so a new deploy reaches the browser at once.
+    OnPrepareResponse = c => c.Context.Response.Headers.CacheControl = "no-cache",
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
 string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
-app.MapGet("/", () => Results.Text($"Eule API {version}"));
+// "/" is the web app (wwwroot/index.html).
 app.MapGet("/health", async (EuleDbContext db) =>
     await db.Database.CanConnectAsync()
         ? Results.Ok(new { status = "ok", version })
