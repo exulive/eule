@@ -52,7 +52,10 @@ public sealed class OpenAiDictationAgent(
         foreach (var item in answer.Items.Take(MaxItems))
         {
             var note = ToNote(item, ctx);
-            if (note != null) notes.Add(note);
+            if (note == null) continue;
+            // A millisecond apart, so the items of one dictation keep the order the user said them in.
+            note.CreatedAt = note.UpdatedAt = ctx.UtcNow.AddMilliseconds(notes.Count);
+            notes.Add(note);
         }
         if (notes.Count == 0)
         {

@@ -133,6 +133,17 @@ public sealed class EuleApiClient
         await EnsureOk(res);
     }
 
+    /// <summary>Ticks an agenda / to-do item off (or back on).</summary>
+    public async Task<NoteInfo> SetDoneAsync(Guid id, bool done, CancellationToken ct = default)
+    {
+        using var res = await Authorized(() => new HttpRequestMessage(HttpMethod.Patch, $"api/notes/{id}")
+        {
+            Content = JsonContent.Create(new { done }, options: Json),
+        }, ct);
+        await EnsureOk(res);
+        return await Read<NoteInfo>(res, ct);
+    }
+
     /// <summary>The dictation history, newest first.</summary>
     public async Task<List<DictationInfo>> GetDictationsAsync(CancellationToken ct = default)
     {

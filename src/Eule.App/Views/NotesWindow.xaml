@@ -10,6 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -24,7 +25,20 @@
                        Text="{l:T notes.sub}" />
         </DockPanel>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="28,0,28,24">
+        <DockPanel Grid.Row="2" Margin="28,8,28,0">
+            <CheckBox x:Name="ShowDone" DockPanel.Dock="Right" Content="{l:T notes.showDone}" FontSize="12.5"
+                      VerticalAlignment="Center" Margin="0,0,0,6" Visibility="Collapsed" />
+            <WrapPanel>
+                <RadioButton x:Name="HistoryTab" GroupName="view" Style="{StaticResource Eule.Chip}" IsChecked="True"
+                             Content="{l:T notes.tab.history}" />
+                <RadioButton x:Name="AgendaTab" GroupName="view" Style="{StaticResource Eule.Chip}"
+                             Content="{l:T notes.tab.agenda}" />
+                <RadioButton x:Name="TodoTab" GroupName="view" Style="{StaticResource Eule.Chip}"
+                             Content="{l:T notes.tab.todo}" />
+            </WrapPanel>
+        </DockPanel>
+
+        <ScrollViewer x:Name="Scroller" Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="28,0,28,24">
             <StackPanel>
                 <TextBlock x:Name="StatusText" FontSize="13" TextWrapping="Wrap" Margin="2,24,0,0"
                            Foreground="{DynamicResource Eule.Muted}" Visibility="Collapsed" />

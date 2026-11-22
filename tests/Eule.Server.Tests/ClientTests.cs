@@ -185,6 +185,22 @@ public class ClientTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task A_to_do_can_be_ticked_off_and_reopened()
+    {
+        string email = await NewUser();
+        var api = Client(new MemoryAccountStore());
+        await api.LoginAsync(email, Password, "test");
+        var r = await api.DictateAsync(Guid.NewGuid(), "süt al", "text", "Europe/Istanbul");
+
+        var done = await api.SetDoneAsync(r.Note!.Id, true);
+        Assert.True(done.Done);
+        Assert.True(Assert.Single(await api.GetNotesAsync()).Done);
+
+        Assert.False((await api.SetDoneAsync(r.Note.Id, false)).Done);
+        Assert.False(Assert.Single(Assert.Single(await api.GetDictationsAsync()).Notes).Done);
+    }
+
+    [Fact]
     public async Task Undo_deletes_the_note()
     {
         string email = await NewUser();
