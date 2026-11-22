@@ -16,7 +16,7 @@ dotnet run --project src/Eule.App
 | `src/Eule.App` | WPF uygulaması: motoru saniyede bir besleyen `AppHost`, günlük kaydı, hata yakalama. |
 | `tests/Eule.Tests` | xUnit testleri. |
 
-Geliştirici bayrakları: `--settings`, `--stats`, `--break`, `--eye`.
+Geliştirici bayrakları: `--settings`, `--stats`, `--notes`, `--break`, `--eye`.
 `EULE_DATA_DIR` ortam değişkeni ayrı bir veri klasörü kullandırır; yalnızca onunla birlikte `--seed-demo` dört haftalık örnek veri yükler.
 
 ```powershell
@@ -69,7 +69,9 @@ Kurulu kopyalar günde bir kez denetler, yeni sürümü indirir ve Eule kapanın
 ## Sunucu (eule.adacreative.net)
 
 Not ve dikte API'si: `src/Eule.Server` (ASP.NET Core 8 + PostgreSQL), Türkçe tarih/saat anlama: `src/Eule.Parsing`,
-testleri: `tests/Eule.Server.Tests`. Coolify'a kurulum adım adım: **[docs/SUNUCU-KURULUM.md](docs/SUNUCU-KURULUM.md)**.
+testleri: `tests/Eule.Server.Tests`.
+Web arayüzü `src/Eule.Server/wwwroot` altında, aynı sunucudan `https://eule.adacreative.net/` adresinde yayınlanır:
+e-posta + şifre ile giriş, notları görme/ekleme/düzenleme/tamamlama/silme (masaüstüyle aynı API ve hesaplar). Coolify'a kurulum adım adım: **[docs/SUNUCU-KURULUM.md](docs/SUNUCU-KURULUM.md)**.
 
 Yerelde denemek (SQLite ile, ayar gerekmez):
 

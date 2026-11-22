@@ -91,7 +91,10 @@ public sealed class Shell : IDisposable
             settingsWindow?.RefreshAccount();
         });
         host.Dictations.DeliveredLater += r => Application.Current.Dispatcher.BeginInvoke(() =>
-            tray.Notify(L.T("note.deliveredTitle"), r.Reply));
+        {
+            tray.Notify(L.T("note.deliveredTitle"), r.Reply);
+            NotesChanged();
+        });
 
         if (host.DatabaseRepair != Core.Storage.EuleDatabase.Repair.None)
             tray.Notify(L.T("db.repairedTitle"), L.T(host.DatabaseRepair == Core.Storage.EuleDatabase.Repair.JournalSetAside
@@ -367,6 +370,29 @@ public sealed class Shell : IDisposable
         statsWindow.Activate();
     }
 
+    NotesWindow? notesWindow;
+
+    public void OpenNotes()
+    {
+        if (notesWindow != null)
+        {
+            if (notesWindow.WindowState == WindowState.Minimized) notesWindow.WindowState = WindowState.Normal;
+            notesWindow.Activate();
+            _ = notesWindow.ReloadAsync();
+            return;
+        }
+        notesWindow = new NotesWindow(host, this);
+        notesWindow.Closed += (_, _) => notesWindow = null;
+        notesWindow.Show();
+        notesWindow.Activate();
+    }
+
+    /// <summary>A note was saved or undone somewhere: an open notes window shows it.</summary>
+    public void NotesChanged()
+    {
+        if (notesWindow != null) _ = notesWindow.ReloadAsync();
+    }
+
     void Exit()
     {
         Log.Information("Kullanıcı çıkış yaptı");
@@ -399,6 +425,7 @@ public sealed class Shell : IDisposable
         var miExit = Item(L.T("menu.exit"), "", Exit);
 
         var miNote = Item(L.T("menu.note"), "", OpenNote);
+        var miNotes = Item(L.T("notes.open"), "", OpenNotes);
         miAccount = Item(L.T("menu.signIn"), "", () =>
         {
             if (host.Api.IsSignedIn) _ = SignOutAsync(); else OpenLogin();
@@ -408,6 +435,7 @@ public sealed class Shell : IDisposable
         menu.Items.Add(miToday);
         menu.Items.Add(new Separator());
         menu.Items.Add(miNote);
+        menu.Items.Add(miNotes);
         menu.Items.Add(new Separator());
         menu.Items.Add(miBreak);
         menu.Items.Add(miPause);

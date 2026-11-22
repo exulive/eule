@@ -343,5 +343,26 @@ public static class L
         ["welcome.back"] = ["Geri", "Back"],
         ["welcome.done"] = ["Başlayalım", "Let's go"],
         ["welcome.privacy"] = ["Ücretsiz. Notların hesabında, ses kaydın bu bilgisayarda kalır.", "Free. Your notes live in your account; your voice stays on this computer."],
+
+        // ---- notes window
+        ["notes.open"] = ["Notlarım", "My notes"],
+        ["notes.title"] = ["Notlarım", "My notes"],
+        ["notes.sub"] = ["Söylediğin ve yazdığın her not, zamanıyla birlikte.", "Everything you said or typed, with its time."],
+        ["notes.loading"] = ["Notların getiriliyor…", "Loading your notes…"],
+        ["notes.empty"] = ["Henüz not yok. Baykuşa tıklayıp söylediğin her şey burada görünür.", "No notes yet. Everything you tell the owl shows up here."],
+        ["notes.signIn"] = ["Notlarını görmek için giriş yap.", "Sign in to see your notes."],
+        ["notes.offline"] = ["Sunucuya ulaşılamadı. Bağlantı gelince yeniden dene.", "Couldn't reach the server. Try again when you're online."],
+        ["notes.refresh"] = ["Yenile", "Refresh"],
+        ["notes.web"] = ["Web'de aç", "Open on the web"],
+        ["notes.today"] = ["Bugün", "Today"],
+        ["notes.yesterday"] = ["Dün", "Yesterday"],
+        ["notes.voice"] = ["Sesle", "Spoken"],
+        ["notes.typed"] = ["Yazıyla", "Typed"],
+        ["notes.due"] = ["Hatırlatma: {0}", "Reminder: {0}"],
+        ["notes.done"] = ["Tamamlandı", "Done"],
+        ["notes.pending"] = ["Gönderilmeyi bekliyor", "Waiting to be sent"],
+        ["notes.delete"] = ["Sil", "Delete"],
+        ["notes.confirmDelete"] = ["Silinsin mi?", "Delete?"],
+        ["notes.deleteFailed"] = ["Silinemedi: {0}", "Couldn't delete: {0}"],
     };
 }

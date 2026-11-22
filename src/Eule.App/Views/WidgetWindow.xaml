@@ -13,6 +13,10 @@
     <!-- Hugs the right edge and takes only the width it needs; any extra window width stays transparent (click-through). -->
     <Border x:Name="Card" Margin="18,16,0,16" CornerRadius="30,0,0,30" Padding="7,7,10,7" HorizontalAlignment="Right"
             Background="{DynamicResource Eule.Raised}" BorderBrush="{DynamicResource Eule.Line}" BorderThickness="1,1,0,1">
+        <!-- Slides the frame in from / out to the screen edge when it opens and closes. -->
+        <Border.RenderTransform>
+            <TranslateTransform x:Name="Slide" />
+        </Border.RenderTransform>
         <Border.Effect>
             <DropShadowEffect BlurRadius="22" ShadowDepth="4" Direction="200"
                               Color="{DynamicResource Eule.ShadowColor}" Opacity="{DynamicResource Eule.ShadowOpacity}" />
@@ -34,6 +38,8 @@
                             ToolTip="{l:T asst.keyboard}" />
                     <Button x:Name="MicButton" Style="{StaticResource Eule.ModeButton}" Content="&#xE720;"
                             ToolTip="{l:T asst.mic}" Margin="6,0,0,0" />
+                    <Button x:Name="NotesButton" Style="{StaticResource Eule.ModeButton}" Content="&#xE8FD;"
+                            ToolTip="{l:T notes.open}" Margin="6,0,0,0" />
                 </StackPanel>
             </StackPanel>
 

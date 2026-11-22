@@ -16,7 +16,8 @@ public interface IAccountStore
     void Clear();
 }
 
-public sealed record NoteInfo(Guid Id, string Text, string Title, DateTime? DueAt, bool HasTime, bool Done, bool Deleted);
+public sealed record NoteInfo(Guid Id, string Text, string Title, DateTime? DueAt, bool HasTime, bool Done, bool Deleted,
+    string Source = "voice", DateTime CreatedAt = default, string TimeZone = "");
 public sealed record DictationResult(Guid DictationId, string Action, string Reply, NoteInfo? Note);
 
 public enum ApiError

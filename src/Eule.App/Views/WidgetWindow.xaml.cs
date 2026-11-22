@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Eule.App.Controls;
@@ -30,7 +31,11 @@ public partial class WidgetWindow : Window
 
     const int ClockFromSeconds = 5 * 60;
     static readonly TimeSpan ShowAnswerFor = TimeSpan.FromSeconds(7);
-    static readonly TimeSpan IdleExpandedFor = TimeSpan.FromSeconds(10);
+    /// <summary>Opened with a click and left alone: slide back after this, unless the mouse is on it.</summary>
+    static readonly TimeSpan IdleExpandedFor = TimeSpan.FromSeconds(4);
+    /// <summary>The mouse left the open frame (nothing to read in it): slide back after this.</summary>
+    static readonly TimeSpan AfterMouseLeaves = TimeSpan.FromSeconds(2.5);
+    static readonly Duration SlideTime = TimeSpan.FromMilliseconds(380);
 
     readonly AppHost host;
     readonly Shell shell;
@@ -39,7 +44,7 @@ public partial class WidgetWindow : Window
     static readonly Random Rng = new();
 
     Panel panel = Panel.None;
-    bool expanded, busy;
+    bool expanded, busy, collapsing;
     MicRecorder? recorder;
     CancellationTokenSource? work;
     Guid? savedNoteId;
@@ -63,11 +68,22 @@ public partial class WidgetWindow : Window
         Owl.MouseLeftButtonUp += OnOwlUp;
         Card.MouseRightButtonUp += (_, e) => { shell.ShowMenu(this); e.Handled = true; };
         Card.MouseEnter += (_, _) => { if (panel is Panel.None or Panel.Reply) collapseTimer.Stop(); };
-        Card.MouseLeave += (_, _) => { if (expanded && !busy && panel is Panel.None or Panel.Reply) Restart(ShowAnswerFor); };
-        collapseTimer.Tick += (_, _) => { collapseTimer.Stop(); if (!busy) Collapse(); };
+        Card.MouseLeave += (_, _) =>
+        {
+            if (expanded && !busy && !collapsing && panel is Panel.None or Panel.Reply)
+                Restart(panel == Panel.Reply ? ShowAnswerFor : AfterMouseLeaves);
+        };
+        collapseTimer.Tick += (_, _) =>
+        {
+            collapseTimer.Stop();
+            // Never pull the frame away from under the mouse; leaving it starts the timer again.
+            if (Card.IsMouseOver && panel is Panel.None or Panel.Reply) return;
+            if (!busy) Collapse();
+        };
 
         KeyboardButton.Click += (_, _) => OpenKeyboard();
         MicButton.Click += (_, _) => OnMic();
+        NotesButton.Click += (_, _) => { Collapse(); shell.OpenNotes(); };
         SendButton.Click += async (_, _) => await SendTypedAsync();
         StopButton.Click += (_, _) => recorder?.Stop();
         UndoButton.Click += async (_, _) => await UndoAsync();
@@ -136,19 +152,80 @@ public partial class WidgetWindow : Window
 
     void Expand()
     {
+        if (collapsing) { Reopen(); return; }
+        StopSlide();
+        double before = Card.ActualWidth;
+        // Keep the frame off screen until it has its new width, then slide it in from the edge.
+        Slide.X = 4000;
         expanded = true;
         ModeButtons.Visibility = Visibility.Visible;
         if (panel == Panel.Prompt) Show(Panel.None);
         Refresh();
+        UpdateLayout();
+        SlideTo(from: Math.Max(0, Card.ActualWidth - before), to: 0, ease: EasingMode.EaseOut);
         Restart(IdleExpandedFor);
     }
 
+    /// <summary>Clicked again while sliding away: come back.</summary>
+    void Reopen()
+    {
+        double x = Slide.X;
+        StopSlide();
+        collapsing = false;
+        SlideTo(from: x, to: 0, ease: EasingMode.EaseOut);
+        Restart(IdleExpandedFor);
+    }
+
+    /// <summary>Slides the open frame back to the edge, then closes it to the owl.</summary>
     public void Collapse()
     {
+        if (collapsing) return;
+        // Stop listening or sending at once; only the picture takes its time.
         work?.Cancel();
         recorder?.Dispose();
         recorder = null;
         busy = false;
+        collapseTimer.Stop();
+        if (!expanded || !IsVisible) { CollapseNow(); return; }
+
+        collapsing = true;
+        double owlOnly = Owl.ActualWidth + Card.Padding.Left + Card.Padding.Right + Card.BorderThickness.Left;
+        SlideTo(from: 0, to: Math.Max(0, Card.ActualWidth - owlOnly), ease: EasingMode.EaseIn, done: () =>
+        {
+            if (!collapsing) return; // reopened meanwhile
+            collapsing = false;
+            CollapseNow();
+            StopSlide();
+        });
+    }
+
+    void SlideTo(double from, double to, EasingMode ease, Action? done = null)
+    {
+        if (Math.Abs(from - to) < 1 || SystemParameters.ClientAreaAnimation == false)
+        {
+            StopSlide();
+            Slide.X = to;
+            done?.Invoke();
+            return;
+        }
+        var a = new DoubleAnimation(from, to, SlideTime)
+        {
+            EasingFunction = new CubicEase { EasingMode = ease },
+            FillBehavior = FillBehavior.HoldEnd,
+        };
+        if (done != null) a.Completed += (_, _) => done();
+        Slide.BeginAnimation(TranslateTransform.XProperty, a);
+    }
+
+    void StopSlide()
+    {
+        Slide.BeginAnimation(TranslateTransform.XProperty, null);
+        Slide.X = 0;
+    }
+
+    void CollapseNow()
+    {
+        collapsing = false;
         expanded = false;
         ModeButtons.Visibility = Visibility.Collapsed;
         KeyboardButton.Tag = MicButton.Tag = null;
@@ -348,6 +425,7 @@ public partial class WidgetWindow : Window
                 savedNoteId = outcome.Result!.Note?.Id;
                 Answer(outcome.Result.Reply, ok: true);
                 UndoButton.Visibility = savedNoteId != null ? Visibility.Visible : Visibility.Collapsed;
+                shell.NotesChanged();
                 break;
             case DictationStatus.Queued:
                 Answer(L.T("note.queued"), ok: false);
@@ -386,6 +464,7 @@ public partial class WidgetWindow : Window
             ReplyText.Text = L.T("note.undone");
             HeardText.Visibility = UndoButton.Visibility = Visibility.Collapsed;
             Log.Information("Not geri alındı: {Id}", id);
+            shell.NotesChanged();
         }
         catch (ApiException ex)
         {
@@ -455,7 +534,9 @@ public partial class WidgetWindow : Window
             return;
         }
         // A click on the owl: open the note choices, or close the frame again.
-        if (expanded) Collapse(); else Expand();
+        if (collapsing) Reopen();
+        else if (expanded) Collapse();
+        else Expand();
     }
 
     // ------------------------------------------------------------------ window style

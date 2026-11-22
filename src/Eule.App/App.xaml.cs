@@ -92,6 +92,7 @@ public partial class App : Application
         if (e.Args.Contains("--welcome")) shell.OpenWelcome();
         if (e.Args.Contains("--settings")) shell.OpenSettings();
         if (e.Args.Contains("--stats")) shell.OpenStats();
+        if (e.Args.Contains("--notes")) shell.OpenNotes();
         if (e.Args.Contains("--break")) host.Do(x => x.StartBreakNow());
         if (e.Args.Contains("--eye")) shell.PreviewEyeBreak();
         if (e.Args.Contains("--note")) shell.OpenNote();

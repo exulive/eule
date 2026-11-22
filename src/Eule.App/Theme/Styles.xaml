@@ -209,4 +209,10 @@
         <Setter Property="Padding" Value="16,12" />
         <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
+
+    <!-- A tooltip inherits the font of its control; on icon buttons that is the icon font, which turns letters into boxes. -->
+    <Style TargetType="ToolTip" BasedOn="{StaticResource {x:Type ToolTip}}">
+        <Setter Property="FontFamily" Value="{StaticResource Eule.Font}" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
 </ResourceDictionary>
