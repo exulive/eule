@@ -1,4 +1,5 @@
-// Eule web: signs in with the same API the desktop app uses and shows the user's notes.
+// Eule web: signs in with the same API the desktop app uses and shows the dictation history, and the agenda
+// and to-do list the assistant files from it.
 // The access token lives only in memory; the refresh token in localStorage ("Beni hatırla") or sessionStorage.
 "use strict";
 
@@ -55,7 +56,12 @@ async function api(path, opts = {}) {
     r = await send();
   }
   if (r.status === 401) { forget(); throw new SignedOut(); }
-  if (!r.ok) throw new Error(r.status === 429 ? "Çok fazla istek, biraz bekle." : "Sunucu hatası (" + r.status + ")");
+  if (!r.ok) {
+    // Problem details carry a readable reason (e.g. the monthly dictation limit).
+    const p = await r.json().catch(() => null);
+    if (p && p.usage) showUsage(p.usage);
+    throw new Error(p && p.detail ? p.detail : r.status === 429 ? "Çok fazla istek, biraz bekle." : "Sunucu hatası (" + r.status + ")");
+  }
   return r.status === 204 ? null : r.json();
 }
 class SignedOut extends Error {}
@@ -106,14 +112,30 @@ function browserName() {
     : /Safari\//.test(ua) ? "Safari" : "Tarayıcı";
 }
 
-// ---------- notes
+// ---------- data: the dictation history and the items the assistant filed from it
+let dictations = [];
+let view = "history";
+const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 async function load() {
   try {
-    if (!user) user = await api("api/me");
+    const [me, ds, ns] = await Promise.all([
+      api("api/me?timeZone=" + encodeURIComponent(zone)), api("api/dictations"), api("api/notes"),
+    ]);
+    user = me; dictations = ds; notes = ns;
     $("who").textContent = user.displayName || user.email;
-    notes = await api("api/notes");
+    showUsage(user.usage);
     render();
   } catch (e) { handle(e); }
+}
+
+function showUsage(u) {
+  if (!u) return;
+  const el = $("usage");
+  el.hidden = false;
+  el.textContent = `Bu ay ${u.used}/${u.limit} dikte`;
+  el.classList.toggle("full", u.used >= u.limit);
+  el.title = "Yenilenme: " + new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" }).format(new Date(u.resetsAt));
 }
 
 $("add-form").addEventListener("submit", async (ev) => {
@@ -121,14 +143,14 @@ $("add-form").addEventListener("submit", async (ev) => {
   const input = ev.target.text, text = input.value.trim();
   if (!text) return;
   input.disabled = true;
+  $("add-reply").textContent = "Anlıyorum…";
   try {
     const res = await api("api/dictations", { method: "POST", body: JSON.stringify({
-      clientId: crypto.randomUUID(), text, source: "text",
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      clientId: crypto.randomUUID(), text, source: "text", timeZone: zone,
     }) });
     $("add-reply").textContent = res.reply;
-    if (res.note) { notes.push(res.note); render(); }
     input.value = "";
+    await load();
   } catch (e) { handle(e); }
   finally { input.disabled = false; input.focus(); }
 });
@@ -137,143 +159,160 @@ async function patch(note, body) {
   try {
     const updated = await api("api/notes/" + note.id, { method: "PATCH", body: JSON.stringify(body) });
     Object.assign(note, updated);
+    for (const d of dictations) for (const n of d.notes) if (n.id === note.id) Object.assign(n, updated);
   } catch (e) { handle(e); }
   render();
 }
 
-async function remove(note) {
-  if (!confirm("Bu not silinsin mi?\n\n" + note.title)) return;
+async function removeNote(note) {
+  if (!confirm("Silinsin mi?\n\n" + note.title)) return;
   try {
     await api("api/notes/" + note.id, { method: "DELETE" });
     notes = notes.filter((n) => n.id !== note.id);
+    for (const d of dictations) d.notes = d.notes.filter((n) => n.id !== note.id);
     render();
   } catch (e) { handle(e); }
 }
 
-// ---------- grouping and display
+async function removeDictation(d) {
+  const what = d.notes.length ? "\n\nBu dikteden eklenenler de silinir: " + d.notes.map((n) => n.title).join(", ") : "";
+  if (!confirm("Dikte silinsin mi?\n\n“" + d.text + "”" + what)) return;
+  try {
+    await api("api/dictations/" + d.id, { method: "DELETE" });
+    const gone = new Set(d.notes.map((n) => n.id));
+    dictations = dictations.filter((x) => x.id !== d.id);
+    notes = notes.filter((n) => !gone.has(n.id));
+    render();
+  } catch (e) { handle(e); }
+}
+
+// ---------- display helpers
 const dayKey = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-function groupOf(n, now) {
-  if (n.done) return "done";
-  if (!n.dueAt) return "none";
-  const due = new Date(n.dueAt);
-  const today = dayKey(now), tomorrow = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
-  const k = dayKey(due);
-  if (n.hasTime ? due < now : k < today) return "overdue";
-  if (k === today) return "today";
-  if (k === tomorrow) return "tomorrow";
-  return "later";
-}
-const GROUPS = [
-  ["overdue", "Gecikmiş"], ["today", "Bugün"], ["tomorrow", "Yarın"], ["later", "Sonra"],
-  ["none", "Tarihsiz"], ["done", "Tamamlanan"],
-];
+const KIND = { event: "Ajanda", todo: "Yapılacak", note: "Not" };
 
-function describe(n) {
-  const parts = [];
-  if (n.dueAt) {
-    const o = { timeZone: n.timeZone || undefined, weekday: "short", day: "numeric", month: "long" };
-    if (n.hasTime) { o.hour = "2-digit"; o.minute = "2-digit"; }
-    parts.push(new Intl.DateTimeFormat("tr-TR", o).format(new Date(n.dueAt)));
-  }
-  parts.push((n.source === "voice" ? "Sesle · " : "Yazıyla · ") +
-    new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short" }).format(new Date(n.createdAt)));
-  if (n.text && n.text.trim().toLocaleLowerCase("tr") !== n.title.trim().toLocaleLowerCase("tr")) parts.push("“" + n.text + "”");
-  return parts.join("  ·  ");
+function when(n, withDay = true) {
+  if (!n.dueAt) return "";
+  const o = { timeZone: n.timeZone || undefined };
+  if (withDay) Object.assign(o, { weekday: "short", day: "numeric", month: "long" });
+  if (n.hasTime) Object.assign(o, { hour: "2-digit", minute: "2-digit" });
+  return new Intl.DateTimeFormat("tr-TR", o).format(new Date(n.dueAt));
 }
-
-// ---------- views: notes grouped by due date, or every dictation by the time it was said
-let view = "notes";
-function setView(v) {
-  view = v;
-  $("tab-notes").setAttribute("aria-selected", v === "notes");
-  $("tab-history").setAttribute("aria-selected", v === "history");
-  $("show-done-label").hidden = v === "history";
-  render();
-}
-$("tab-notes").addEventListener("click", () => setView("notes"));
-$("tab-history").addEventListener("click", () => setView("history"));
-
-const matches = (n, q) => !q || (n.title + " " + n.text).toLocaleLowerCase("tr").includes(q);
 
 function dayLabel(d, now) {
-  const k = dayKey(d);
-  if (k === dayKey(now)) return "Bugün";
-  if (k === dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) return "Dün";
+  const k = dayKey(d), day = (offset) => dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset));
+  if (k === day(0)) return "Bugün";
+  if (k === day(-1)) return "Dün";
+  if (k === day(1)) return "Yarın";
   const o = { weekday: "long", day: "numeric", month: "long" };
   if (d.getFullYear() !== now.getFullYear()) o.year = "numeric";
   return new Intl.DateTimeFormat("tr-TR", o).format(d);
 }
 
-function renderHistory() {
-  const now = new Date();
-  const q = $("search").value.trim().toLocaleLowerCase("tr");
-  const list = notes.filter((n) => matches(n, q)).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  const box = $("groups");
-  box.replaceChildren();
-  const time = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" });
-  let ul = null, lastDay = null;
-  for (const n of list) {
-    const at = new Date(n.createdAt), day = dayKey(at);
-    if (day !== lastDay) {
-      const h = document.createElement("h2");
-      h.textContent = dayLabel(at, now);
-      ul = document.createElement("ul");
-      box.append(h, ul);
-      lastDay = day;
-    }
-    const li = $("history-tpl").content.firstElementChild.cloneNode(true);
-    li.querySelector(".clock").textContent = time.format(at);
-    li.querySelector(".clock").dateTime = n.createdAt;
-    li.querySelector(".said").textContent = n.text || n.title;
-    const meta = [n.source === "voice" ? "Sesle" : "Yazıyla"];
-    if (n.dueAt) {
-      const o = { timeZone: n.timeZone || undefined, weekday: "short", day: "numeric", month: "long" };
-      if (n.hasTime) { o.hour = "2-digit"; o.minute = "2-digit"; }
-      meta.push("Hatırlatma: " + new Intl.DateTimeFormat("tr-TR", o).format(new Date(n.dueAt)));
-    }
-    if (n.done) meta.push("Tamamlandı");
-    li.querySelector(".meta").textContent = meta.join("  ·  ");
-    li.querySelector(".del").addEventListener("click", () => remove(n));
-    ul.append(li);
-  }
-  $("empty").hidden = list.length > 0;
-  $("empty").textContent = notes.length ? "Eşleşen dikte yok." : "Henüz dikte yok. Baykuşa söylediğin her şey burada görünür.";
+const query = () => $("search").value.trim().toLocaleLowerCase("tr");
+const has = (q, ...texts) => !q || texts.join(" ").toLocaleLowerCase("tr").includes(q);
+
+function section(box, label, cls) {
+  const h = document.createElement("h2");
+  h.textContent = label;
+  if (cls) h.className = cls;
+  const ul = document.createElement("ul");
+  box.append(h, ul);
+  return ul;
 }
+
+function empty(shown, text) {
+  $("empty").hidden = shown;
+  $("empty").textContent = text;
+}
+
+// ---------- views
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
+  view = t.dataset.view;
+  document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", x === t));
+  $("show-done-label").hidden = view === "history";
+  render();
+}));
 
 function render() {
-  if (view === "history") return renderHistory();
-  const now = new Date();
-  const q = $("search").value.trim().toLocaleLowerCase("tr");
-  const showDone = $("show-done").checked;
-  const buckets = Object.fromEntries(GROUPS.map(([k]) => [k, []]));
-  for (const n of notes) {
-    if (q && !(n.title + " " + n.text).toLocaleLowerCase("tr").includes(q)) continue;
-    const g = groupOf(n, now);
-    if (g === "done" && !showDone) continue;
-    buckets[g].push(n);
-  }
-  const byDue = (a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt);
-  const byNew = (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt);
-  const box = $("groups");
-  box.replaceChildren();
-  let any = false;
-  for (const [key, label] of GROUPS) {
-    const list = buckets[key];
-    if (!list.length) continue;
-    any = true;
-    list.sort(key === "none" || key === "done" ? byNew : byDue);
-    const h = document.createElement("h2");
-    h.textContent = label + " · " + list.length;
-    if (key === "overdue") h.className = "overdue";
-    const ul = document.createElement("ul");
-    for (const n of list) ul.append(row(n));
-    box.append(h, ul);
-  }
-  $("empty").hidden = any;
-  $("empty").textContent = notes.length && !any ? "Eşleşen not yok." : "Henüz not yok. Baykuşa söylediğin her şey burada görünür.";
+  $("groups").replaceChildren();
+  if (view === "agenda") renderAgenda();
+  else if (view === "todo") renderTodos();
+  else renderHistory();
 }
 
-function row(n) {
+/** Every dictation by the time it was said, with what the assistant made of it. */
+function renderHistory() {
+  const now = new Date(), q = query(), box = $("groups");
+  const time = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const list = dictations.filter((d) => has(q, d.text, ...d.notes.map((n) => n.title + " " + n.body)));
+  let ul = null, lastDay = null;
+  for (const d of list) {
+    const at = new Date(d.receivedAt);
+    if (dayKey(at) !== lastDay) { ul = section(box, dayLabel(at, now)); lastDay = dayKey(at); }
+    const li = $("history-tpl").content.firstElementChild.cloneNode(true);
+    li.querySelector(".clock").textContent = time.format(at);
+    li.querySelector(".clock").dateTime = d.receivedAt;
+    li.querySelector(".said").textContent = "“" + d.text + "”";
+    const items = li.querySelector(".items");
+    for (const n of d.notes) {
+      const it = document.createElement("li");
+      it.className = "item kind-" + n.kind + (n.done ? " is-done" : "");
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = KIND[n.kind] || "Not";
+      const title = document.createElement("span");
+      title.className = "item-title";
+      title.textContent = n.title + (n.dueAt ? "  ·  " + when(n) : "");
+      it.append(tag, title);
+      if (n.body) { const b = document.createElement("div"); b.className = "muted small"; b.textContent = n.body; it.append(b); }
+      items.append(it);
+    }
+    if (!d.notes.length) {
+      const it = document.createElement("li");
+      it.className = "item muted";
+      it.textContent = "Bu dikteden kayıtlı bir öğe kalmadı.";
+      items.append(it);
+    }
+    li.querySelector(".meta").textContent = d.source === "voice" ? "Sesle" : "Yazıyla";
+    li.querySelector(".del").title = "Dikteyi sil";
+    li.querySelector(".del").addEventListener("click", () => removeDictation(d));
+    ul.append(li);
+  }
+  empty(list.length > 0, dictations.length ? "Eşleşen dikte yok."
+    : "Henüz dikte yok. Baykuşa söylediğin ya da buraya yazdığın her şey burada görünür.");
+}
+
+/** Dated items by day: overdue first, then today, tomorrow and later. */
+function renderAgenda() {
+  const now = new Date(), q = query(), showDone = $("show-done").checked, box = $("groups");
+  const list = notes.filter((n) => n.kind === "event" && n.dueAt && (showDone || !n.done) && has(q, n.title, n.body, n.text))
+    .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
+  const late = (n) => !n.done && (n.hasTime ? new Date(n.dueAt) < now : dayKey(new Date(n.dueAt)) < dayKey(now));
+  const overdue = list.filter(late);
+  if (overdue.length) { const ul = section(box, "Gecikmiş · " + overdue.length, "overdue"); overdue.forEach((n) => ul.append(row(n, false))); }
+  let ul = null, lastDay = null;
+  for (const n of list) {
+    if (late(n)) continue;
+    const at = new Date(n.dueAt);
+    if (dayKey(at) !== lastDay) { ul = section(box, dayLabel(at, now)); lastDay = dayKey(at); }
+    ul.append(row(n, true));
+  }
+  empty(list.length > 0, "Ajandada bir şey yok. Tarih ya da saat içeren dikteler buraya eklenir.");
+}
+
+/** The to-do list: open items first, newest on top. */
+function renderTodos() {
+  const q = query(), showDone = $("show-done").checked, box = $("groups");
+  const all = notes.filter((n) => n.kind === "todo" && has(q, n.title, n.body, n.text));
+  const byNew = (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt);
+  const open = all.filter((n) => !n.done).sort(byNew), done = all.filter((n) => n.done).sort(byNew);
+  if (open.length) { const ul = section(box, "Yapılacak · " + open.length); open.forEach((n) => ul.append(row(n, false))); }
+  if (showDone && done.length) { const ul = section(box, "Tamamlanan · " + done.length); done.forEach((n) => ul.append(row(n, false))); }
+  empty(open.length > 0 || (showDone && done.length > 0),
+    all.length ? "Hepsi tamam." : "Yapılacak bir şey yok. Tarihsiz işler buraya eklenir.");
+}
+
+function row(n, timeOnly) {
   const li = $("note-tpl").content.firstElementChild.cloneNode(true);
   li.classList.toggle("is-done", n.done);
   const cb = li.querySelector(".done");
@@ -290,14 +329,18 @@ function row(n) {
     if (!t) { title.textContent = n.title; return; }
     if (t !== n.title) patch(n, { title: t.slice(0, 500) });
   });
-  li.querySelector(".meta").textContent = describe(n);
-  li.querySelector(".del").addEventListener("click", () => remove(n));
+  const meta = [];
+  if (n.dueAt) meta.push(timeOnly ? (n.hasTime ? when(n, false) : "Gün boyu") : when(n));
+  if (n.body) meta.push(n.body);
+  meta.push("“" + n.text + "”");
+  li.querySelector(".meta").textContent = meta.join("  ·  ");
+  li.querySelector(".del").addEventListener("click", () => removeNote(n));
   return li;
 }
 
 $("search").addEventListener("input", render);
 $("show-done").addEventListener("change", render);
-// Notes said to the owl on the desktop show up here without a reload.
+// Dictations said to the owl on the desktop show up here without a reload.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("app").hidden) load(); });
 setInterval(() => { if (!document.hidden && !$("app").hidden && !document.activeElement?.isContentEditable) load(); }, 60_000);
 

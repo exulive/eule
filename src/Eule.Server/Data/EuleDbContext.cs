@@ -14,6 +14,8 @@ public sealed class User
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
+    /// <summary>Dictations allowed per month; null = the system default (Limits:DictationsPerMonth).</summary>
+    public int? DictationLimit { get; set; }
 }
 
 /// <summary>Long-lived sign-in. Only a SHA-256 hash of the token is stored; tokens rotate on every use.</summary>
@@ -33,9 +35,16 @@ public sealed class Note
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid UserId { get; set; }
+    /// <summary>The dictation this item came from (one dictation can give several items).</summary>
+    public Guid? DictationId { get; set; }
+    /// <summary>"event" (agenda: has a date), "todo" (to-do list) or "note" (plain note).</summary>
+    public string Kind { get; set; } = NoteKinds.Todo;
     /// <summary>What was said or typed, unchanged.</summary>
     public string Text { get; set; } = "";
+    /// <summary>Short, clean title, rewritten from the dictation.</summary>
     public string Title { get; set; } = "";
+    /// <summary>Optional longer, clearly rewritten text.</summary>
+    public string Body { get; set; } = "";
     public DateTime? DueAt { get; set; }
     /// <summary>False when only a day was given.</summary>
     public bool HasTime { get; set; }
@@ -65,6 +74,17 @@ public sealed class Dictation
     public string Action { get; set; } = "";
     public Guid? NoteId { get; set; }
     public string Reply { get; set; } = "";
+    /// <summary>Language model tokens this dictation cost (0 without AI).</summary>
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    /// <summary>Removed from the history. Still counts toward the monthly limit.</summary>
+    public DateTime? DeletedAt { get; set; }
+}
+
+public static class NoteKinds
+{
+    public const string Event = "event", Todo = "todo", Note = "note";
+    public static readonly string[] All = [Event, Todo, Note];
 }
 
 public sealed class EuleDbContext(DbContextOptions<EuleDbContext> options) : DbContext(options)
@@ -96,6 +116,9 @@ public sealed class EuleDbContext(DbContextOptions<EuleDbContext> options) : DbC
         {
             e.ToTable("notes");
             e.HasIndex(x => new { x.UserId, x.UpdatedAt });
+            e.HasIndex(x => x.DictationId);
+            e.Property(x => x.Kind).HasMaxLength(16).HasDefaultValue(NoteKinds.Todo);
+            e.Property(x => x.Body).HasMaxLength(2000).HasDefaultValue("");
             e.Property(x => x.Text).HasMaxLength(2000);
             e.Property(x => x.Title).HasMaxLength(500);
             e.Property(x => x.TimeZone).HasMaxLength(64);
@@ -105,6 +128,7 @@ public sealed class EuleDbContext(DbContextOptions<EuleDbContext> options) : DbC
         {
             e.ToTable("dictations");
             e.HasIndex(x => new { x.UserId, x.ClientId }).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.ReceivedAt });
             e.Property(x => x.Text).HasMaxLength(2000);
             e.Property(x => x.TimeZone).HasMaxLength(64);
             e.Property(x => x.Source).HasMaxLength(16);

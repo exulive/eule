@@ -1,4 +1,5 @@
 using Eule.Server.Data;
+using Eule.Server.Notes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace Eule.Server.Auth;
 public sealed record LoginRequest(string Email, string Password, string? Device);
 public sealed record RefreshRequest(string RefreshToken);
 public sealed record UserDto(Guid Id, string Email, string DisplayName);
+public sealed record MeDto(Guid Id, string Email, string DisplayName, UsageDto Usage);
 public sealed record TokenResponse(
     string AccessToken, DateTime AccessTokenExpiresAt, string RefreshToken, DateTime RefreshTokenExpiresAt, UserDto User);
 
@@ -79,10 +81,14 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
-        app.MapGet("/api/me", async (HttpContext http, EuleDbContext db) =>
+        // The account and this month's dictation allowance.
+        app.MapGet("/api/me", async (string? timeZone, HttpContext http, EuleDbContext db, IConfiguration config,
+            TimeProvider time, CancellationToken ct) =>
         {
-            var user = await db.Users.FindAsync(http.User.UserId());
-            return user == null ? Results.NotFound() : Results.Ok(new UserDto(user.Id, user.Email, user.DisplayName));
+            var user = await db.Users.FindAsync([http.User.UserId()], ct);
+            if (user == null) return Results.NotFound();
+            var usage = await Usage.ForAsync(db, user, config, NoteEndpoints.FindZone(timeZone), time.GetUtcNow().UtcDateTime, ct);
+            return Results.Ok(new MeDto(user.Id, user.Email, user.DisplayName, usage));
         }).RequireAuthorization();
     }
 

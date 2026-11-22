@@ -78,6 +78,38 @@ public class ClientTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task At_the_monthly_limit_the_dictation_is_kept_and_the_reason_shown()
+    {
+        string email = await NewUser();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var sdb = scope.ServiceProvider.GetRequiredService<EuleDbContext>();
+            (await sdb.Users.SingleAsync(u => u.Email == email)).DictationLimit = 1;
+            await sdb.SaveChangesAsync();
+        }
+        using var db = new EuleDatabase(":memory:");
+        var api = Client(new MemoryAccountStore());
+        await api.LoginAsync(email, Password, "test");
+        var service = new DictationService(api, db, factory.Clock);
+
+        var first = await service.SubmitAsync("Süt al", "text");
+        Assert.Equal(DictationStatus.Saved, first.Status);
+
+        var second = await service.SubmitAsync("Ekmek al", "text");
+        Assert.Equal(DictationStatus.LimitReached, second.Status);
+        Assert.Contains("1 dikte hakkın doldu", second.Error);
+        Assert.Equal(1, service.PendingCount); // not lost
+
+        // History and undo through the client.
+        var history = await api.GetDictationsAsync();
+        var entry = Assert.Single(history);
+        Assert.Equal("Süt al", entry.Text);
+        Assert.Equal("todo", Assert.Single(entry.Notes).Kind);
+        await api.DeleteDictationAsync(first.Result!.DictationId);
+        Assert.Empty(await api.GetDictationsAsync());
+    }
+
+    [Fact]
     public async Task Expired_access_token_is_refreshed_silently_and_the_refresh_token_rotates()
     {
         string email = await NewUser();

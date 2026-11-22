@@ -104,6 +104,18 @@ Aynı projede **+ New → Public Repository**:
 |---|---|
 | `ConnectionStrings__Default` | 2. adımda hazırladığınız bağlantı cümlesi |
 | `Jwt__SigningKey` | En az 32 karakterlik rastgele bir anahtar (aşağıdaki komutla üretin) |
+| `OpenAI__ApiKey` | OpenAI API anahtarı (`sk-…`). Tek anahtar, bütün kullanıcılar için. Yoksa dikteler yapay zekâsız, kurallı ayrıştırıcıyla kaydedilir. |
+
+İsteğe bağlı (varsayılanları `appsettings.json` içinde):
+
+| Ad | Varsayılan | Ne işe yarar |
+|---|---|---|
+| `OpenAI__Model` | `gpt-6-luna` | Dikteyi yorumlayan model |
+| `OpenAI__ReasoningEffort` | `none` | Modelin düşünme seviyesi. `none` en hızlı ve ucuz; daha isabetli istenirse `low` |
+| `OpenAI__TimeoutSeconds` | `12` | Bu süre aşılırsa dikte kurallı ayrıştırıcıyla kaydedilir |
+| `Limits__DictationsPerMonth` | `100` | Kullanıcı başına aylık dikte hakkı (kişiye özel: `user limit`) |
+
+OpenAI panelinde (**Settings → Limits**) aylık bir bütçe sınırı da koymanızı öneririz.
 
 Anahtarı kendi bilgisayarınızda üretin (PowerShell):
 
@@ -146,7 +158,9 @@ dotnet Eule.Server.dll user add siz@adacreative.net --name "Ali"
 Diğer komutlar:
 
 ```bash
-dotnet Eule.Server.dll user list                          # hesaplar, not sayıları, son giriş
+dotnet Eule.Server.dll user list                          # hesaplar, bu ayki dikte/limit, token, son giriş
+dotnet Eule.Server.dll user limit biri@adacreative.net 300     # bu kişiye ayda 300 dikte
+dotnet Eule.Server.dll user limit biri@adacreative.net default # varsayılan limite dön
 dotnet Eule.Server.dll user passwd siz@adacreative.net    # şifre değiştir (tüm oturumlar kapanır)
 dotnet Eule.Server.dll user disable biri@adacreative.net  # hesabı kapat (oturumlar hemen biter)
 dotnet Eule.Server.dll user enable biri@adacreative.net   # yeniden aç
@@ -217,6 +231,8 @@ Veritabanı değişiklikleri (migration) uygulama açılırken kendiliğinden uy
 | `/health` → `database_unreachable` | Uygulama çalışıyor ama veritabanına ulaşamıyor. Veritabanı çalışıyor mu, şifre doğru mu? |
 | Giriş hep `401` | E-posta/şifre yanlış ya da hesap kapalı (`user list` ile bakın). Şifreyi `user passwd` ile yenileyin. |
 | `429 Too Many Requests` | Bir dakikada 10'dan fazla giriş denemesi. Bir dakika bekleyin. |
+| Dikteler yeniden yazılmıyor ("Kaydettim: …" yanıtı) | `OpenAI__ApiKey` yok, yanlış ya da OpenAI hesabında bakiye yok. Loglarda `Dil modeli kullanılamadı` satırına bakın. |
+| `403 dictation_limit` | Kullanıcının bu ayki hakkı doldu. `user limit` ile artırın ya da ayın bitmesini bekleyin. |
 
 ---
 
@@ -230,13 +246,18 @@ Tüm istekler `https://eule.adacreative.net` altında, JSON ile. `🔒` olanlar 
 | `POST` | `/api/auth/login` | `{ email, password, device? }` → anahtarlar + kullanıcı |
 | `POST` | `/api/auth/refresh` | `{ refreshToken }` → yeni anahtarlar (eskisi geçersiz) |
 | `POST` | `/api/auth/logout` | `{ refreshToken }` → oturumu kapatır |
-| `GET` 🔒 | `/api/me` | Giriş yapmış kullanıcı |
-| `POST` 🔒 | `/api/dictations` | `{ clientId, text, timeZone?, source? }` → `{ action, reply, note }`. Aynı `clientId` tekrar gelirse yeni not açılmaz, ilk sonuç döner. |
+| `GET` 🔒 | `/api/me` | Giriş yapmış kullanıcı ve bu ayki dikte hakkı (`usage: { used, limit, resetsAt }`). `?timeZone=` ile ay sınırı o saat diliminde. |
+| `POST` 🔒 | `/api/dictations` | `{ clientId, text, timeZone?, source? }` → `{ dictationId, action, reply, note, notes, usage }`. Aynı `clientId` tekrar gelirse yeni öğe açılmaz, ilk sonuç döner. Aylık hak dolduysa `403` + `title: "dictation_limit"`. |
+| `GET` 🔒 | `/api/dictations` | Dikte geçmişi (en yeni önce), her biri eklediği öğelerle |
+| `DELETE` 🔒 | `/api/dictations/{id}` | Dikteyi ve eklediği öğeleri siler ("Geri al"). Aylık haktan düşmez. |
 | `GET` 🔒 | `/api/notes` | Notlar. `?since=<ISO zaman>` ile o andan sonraki bütün değişiklikler (silinenler dahil). |
 | `GET` 🔒 | `/api/notes/{id}` | Tek not |
 | `PATCH` 🔒 | `/api/notes/{id}` | `{ title?, dueAt?, hasTime?, done?, clearDue? }` |
 | `DELETE` 🔒 | `/api/notes/{id}` | Notu siler ("Geri al") |
 
-**Yapay zeka ajanı için hazırlık:** Her dikte, `dictations` tablosunda hangi ajanın ne yaptığıyla birlikte saklanır.
-Şimdilik tek ajan **not kaydetme** (`save-note`). İleride bir yapay zeka ajanı aynı noktaya eklenecek
-(`IDictationAgent`); masaüstü uygulaması değişmeden metni göndermeye ve gelen cevabı göstermeye devam edecek.
+**Kişisel not ajanı:** `OpenAI__ApiKey` tanımlıysa her dikte GPT-6 Luna'ya gider (Responses API, sıkı JSON
+şeması, `store: false`). Model diktedeki her işi ayırır (en fazla 5), Türkçe ve anlaşılır biçimde yeniden yazar ve
+türünü seçer: **Ajanda** (`event`, tarihi var), **Yapılacaklar** (`todo`) ya da **Not** (`note`). Tarihler kullanıcının
+saat dilimine göre çözülür. Model ulaşılamaz, yavaş ya da anlamsız yanıt verirse dikte kurallı ayrıştırıcıyla
+(`save-note`) kaydedilir; hiçbir dikte kaybolmaz. Her diktenin harcadığı token `dictations` tablosunda tutulur.
+Not metinleri OpenAI'ye gider; ses kaydı gitmez (bilgisayarda yazıya çevrilir).

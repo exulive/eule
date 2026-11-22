@@ -12,6 +12,8 @@ public enum DictationStatus
     NeedsSignIn,
     /// <summary>The server refused it (e.g. empty); it was not kept.</summary>
     Rejected,
+    /// <summary>This month's dictation allowance is used up; kept and sent when it renews. Error says so.</summary>
+    LimitReached,
 }
 
 public sealed record DictationOutcome(DictationStatus Status, DictationResult? Result = null, string? Error = null);
@@ -61,6 +63,12 @@ public sealed class DictationService(EuleApiClient api, EuleDatabase db, TimePro
         {
             return new DictationOutcome(DictationStatus.NeedsSignIn, Error: ex.Message);
         }
+        catch (ApiException ex) when (ex.Kind == ApiError.LimitReached)
+        {
+            // Kept: the words are not lost, and they go out by themselves when the allowance renews.
+            db.OutboxFailed(item.ClientId, ex.Message);
+            return new DictationOutcome(DictationStatus.LimitReached, Error: ex.Message);
+        }
         catch (ApiException ex) when (ex.IsTransient)
         {
             db.OutboxFailed(item.ClientId, ex.Message);
@@ -88,7 +96,7 @@ public sealed class DictationService(EuleApiClient api, EuleDatabase db, TimePro
                     sent++;
                     DeliveredLater?.Invoke(outcome.Result!);
                 }
-                else if (outcome.Status is DictationStatus.Queued or DictationStatus.NeedsSignIn) break;
+                else if (outcome.Status is DictationStatus.Queued or DictationStatus.NeedsSignIn or DictationStatus.LimitReached) break;
             }
         }
         finally

@@ -11,6 +11,7 @@ namespace Eule.Server;
 ///   dotnet Eule.Server.dll user passwd ali@example.com
 ///   dotnet Eule.Server.dll user list
 ///   dotnet Eule.Server.dll user disable ali@example.com   (enable: user enable …)
+///   dotnet Eule.Server.dll user limit ali@example.com 300 (monthly dictations; "default" = Limits:DictationsPerMonth)
 /// </code>
 /// Passwords are asked for interactively and never appear in the command line or shell history.
 /// With --password-stdin they are read from standard input instead (for scripts).
@@ -71,18 +72,37 @@ public static class UserCli
                 Console.WriteLine($"{user.Email}: {(user.IsActive ? "etkin" : "devre dışı")}");
                 return 0;
             }
+            case "limit":
+            {
+                // user limit ali@example.com 300   |   user limit ali@example.com default
+                var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
+                if (user == null) return Fail($"{email} bulunamadı.");
+                string value = args.Length > 2 ? args[2] : "";
+                if (value == "default") user.DictationLimit = null;
+                else if (int.TryParse(value, out int n) && n >= 0) user.DictationLimit = n;
+                else return Fail("Kullanım: user limit <e-posta> <aylık dikte sayısı | default>");
+                await db.SaveChangesAsync();
+                Console.WriteLine($"{user.Email}: aylık dikte limiti {user.DictationLimit?.ToString() ?? "varsayılan"}");
+                return 0;
+            }
             case "list":
             {
+                var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                var zone = Notes.NoteEndpoints.FindZone(null);
                 foreach (var u in await db.Users.OrderBy(u => u.Email).ToListAsync())
                 {
-                    int notes = await db.Notes.CountAsync(n => n.UserId == u.Id && n.DeletedAt == null);
+                    var usage = await Notes.Usage.ForAsync(db, u, config, zone, now, default);
+                    var tokens = await db.Dictations.Where(d => d.UserId == u.Id && d.ReceivedAt >= usage.ResetsAt.AddMonths(-1).ToUniversalTime())
+                        .GroupBy(_ => 1).Select(g => new { In = g.Sum(d => d.InputTokens), Out = g.Sum(d => d.OutputTokens) })
+                        .FirstOrDefaultAsync();
                     Console.WriteLine($"{u.Email,-36} {u.DisplayName,-20} {(u.IsActive ? "etkin" : "kapalı"),-7} " +
-                                      $"not: {notes,-5} son giriş: {u.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "—"}");
+                                      $"bu ay dikte: {usage.Used}/{usage.Limit,-5} token: {tokens?.In ?? 0}+{tokens?.Out ?? 0,-8} " +
+                                      $"son giriş: {u.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "—"}");
                 }
                 return 0;
             }
             default:
-                return Fail("Komutlar: user add | passwd | list | disable | enable");
+                return Fail("Komutlar: user add | passwd | list | disable | enable | limit");
         }
     }
 

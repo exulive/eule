@@ -47,7 +47,7 @@ public partial class WidgetWindow : Window
     bool expanded, busy, collapsing;
     MicRecorder? recorder;
     CancellationTokenSource? work;
-    Guid? savedNoteId;
+    Guid? savedDictationId;
 
     // vertical drag
     bool pressing, dragging;
@@ -422,9 +422,9 @@ public partial class WidgetWindow : Window
         switch (outcome.Status)
         {
             case DictationStatus.Saved:
-                savedNoteId = outcome.Result!.Note?.Id;
+                savedDictationId = outcome.Result!.DictationId;
                 Answer(outcome.Result.Reply, ok: true);
-                UndoButton.Visibility = savedNoteId != null ? Visibility.Visible : Visibility.Collapsed;
+                UndoButton.Visibility = Visibility.Visible;
                 shell.NotesChanged();
                 break;
             case DictationStatus.Queued:
@@ -433,6 +433,9 @@ public partial class WidgetWindow : Window
             case DictationStatus.NeedsSignIn:
                 Answer(L.T("note.needsSignIn"), ok: false);
                 SignInButton.Visibility = Visibility.Visible;
+                break;
+            case DictationStatus.LimitReached:
+                Answer(L.F("note.limit", outcome.Error ?? ""), ok: false);
                 break;
             default:
                 Answer(L.T("note.rejected"), ok: false);
@@ -454,13 +457,13 @@ public partial class WidgetWindow : Window
 
     async Task UndoAsync()
     {
-        if (savedNoteId is not Guid id || busy) return;
+        if (savedDictationId is not Guid id || busy) return;
         busy = true;
         collapseTimer.Stop();
         UndoButton.IsEnabled = false;
         try
         {
-            await host.Api.DeleteNoteAsync(id);
+            await host.Api.DeleteDictationAsync(id);
             ReplyText.Text = L.T("note.undone");
             HeardText.Visibility = UndoButton.Visibility = Visibility.Collapsed;
             Log.Information("Not geri alındı: {Id}", id);

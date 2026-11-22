@@ -17,8 +17,11 @@ public interface IAccountStore
 }
 
 public sealed record NoteInfo(Guid Id, string Text, string Title, DateTime? DueAt, bool HasTime, bool Done, bool Deleted,
-    string Source = "voice", DateTime CreatedAt = default, string TimeZone = "");
+    string Source = "voice", DateTime CreatedAt = default, string TimeZone = "", string Kind = "todo", string Body = "",
+    Guid? DictationId = null);
 public sealed record DictationResult(Guid DictationId, string Action, string Reply, NoteInfo? Note);
+/// <summary>One entry of the dictation history and the agenda / to-do items it produced.</summary>
+public sealed record DictationInfo(Guid Id, string Text, string Source, DateTime ReceivedAt, string Reply, List<NoteInfo> Notes);
 
 public enum ApiError
 {
@@ -33,6 +36,8 @@ public enum ApiError
     Server,
     /// <summary>The server refused the request itself; retrying will not help.</summary>
     Rejected,
+    /// <summary>This month's dictation allowance is used up; the message says when it renews.</summary>
+    LimitReached,
 }
 
 public sealed class ApiException(ApiError kind, string message, Exception? inner = null) : Exception(message, inner)
@@ -118,6 +123,22 @@ public sealed class EuleApiClient
         using var res = await Authorized(() => new HttpRequestMessage(HttpMethod.Delete, $"api/notes/{id}"), ct);
         if (res.StatusCode == HttpStatusCode.NotFound) return; // already gone
         await EnsureOk(res);
+    }
+
+    /// <summary>Removes a dictation and everything it produced (undo, and delete in the history).</summary>
+    public async Task DeleteDictationAsync(Guid id, CancellationToken ct = default)
+    {
+        using var res = await Authorized(() => new HttpRequestMessage(HttpMethod.Delete, $"api/dictations/{id}"), ct);
+        if (res.StatusCode == HttpStatusCode.NotFound) return; // already gone
+        await EnsureOk(res);
+    }
+
+    /// <summary>The dictation history, newest first.</summary>
+    public async Task<List<DictationInfo>> GetDictationsAsync(CancellationToken ct = default)
+    {
+        using var res = await Authorized(() => new HttpRequestMessage(HttpMethod.Get, "api/dictations"), ct);
+        await EnsureOk(res);
+        return await Read<List<DictationInfo>>(res, ct);
     }
 
     public async Task<List<NoteInfo>> GetNotesAsync(DateTime? since = null, CancellationToken ct = default)
@@ -218,6 +239,20 @@ public sealed class EuleApiClient
     {
         if (res.IsSuccessStatusCode) return;
         int code = (int)res.StatusCode;
+        if (code == 403)
+        {
+            string body = await res.Content.ReadAsStringAsync();
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("title", out var t) && t.GetString() == "dictation_limit")
+                    throw new ApiException(ApiError.LimitReached,
+                        root.TryGetProperty("detail", out var d) ? d.GetString() ?? "Dikte hakkın doldu." : "Dikte hakkın doldu.");
+            }
+            catch (JsonException) { }
+            throw new ApiException(ApiError.Rejected, $"Sunucu isteği reddetti (403): {body}");
+        }
         throw code switch
         {
             401 => new ApiException(ApiError.SignedOut, "Oturum sona erdi."),

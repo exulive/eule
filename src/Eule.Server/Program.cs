@@ -21,7 +21,14 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDbContext<EuleDbContext>((sp, o) => Database.Configure(o, sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<PasswordHasher<User>>();
 builder.Services.AddSingleton<TokenService>();
-builder.Services.AddScoped<IDictationAgent, SaveNoteAgent>();
+// Dictation agent: GPT (one system-wide key, OpenAI__ApiKey) when configured, else the rule-based parser.
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IConfiguration>().GetSection("OpenAI").Get<OpenAiOptions>() ?? new OpenAiOptions());
+builder.Services.AddHttpClient(OpenAiDictationAgent.HttpClientName);
+builder.Services.AddScoped<SaveNoteAgent>();
+builder.Services.AddScoped<OpenAiDictationAgent>();
+builder.Services.AddScoped<IDictationAgent>(sp => sp.GetRequiredService<OpenAiOptions>().IsConfigured
+    ? sp.GetRequiredService<OpenAiDictationAgent>()
+    : sp.GetRequiredService<SaveNoteAgent>());
 
 // Admin commands run before anything web-related: `dotnet Eule.Server.dll user add ...`
 if (adminCommand)

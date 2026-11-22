@@ -50,11 +50,11 @@ public partial class NotesWindow : Wpf.Ui.Controls.FluentWindow
         if (List.Children.Count == 0) Status(L.T("notes.loading"));
         RefreshButton.IsEnabled = false;
 
-        List<NoteInfo>? notes = null;
+        List<DictationInfo>? dictations = null;
         string? error = null;
         try
         {
-            notes = await host.Api.GetNotesAsync(ct: cts.Token);
+            dictations = await host.Api.GetDictationsAsync(cts.Token);
         }
         catch (OperationCanceledException) { return; }
         catch (ApiException ex)
@@ -77,23 +77,24 @@ public partial class NotesWindow : Wpf.Ui.Controls.FluentWindow
         if (cts.IsCancellationRequested) return;
 
         var pending = host.Database.OutboxPending();
-        Render(notes ?? [], pending, error);
+        Render(dictations ?? [], pending, error);
     }
 
     // ------------------------------------------------------------------ list
 
-    sealed record Row(DateTime At, string Said, string Meta, Func<Task>? Delete, bool Pending);
+    /// <summary>One dictation: what was said, what Eule filed from it (agenda / to-do / note), and how to delete it.</summary>
+    sealed record Row(DateTime At, string Said, IReadOnlyList<string> Items, string Meta, Func<Task>? Delete, bool Pending);
 
-    void Render(List<NoteInfo> notes, List<Core.Storage.OutboxItem> pending, string? error)
+    void Render(List<DictationInfo> dictations, List<Core.Storage.OutboxItem> pending, string? error)
     {
         var rows = new List<Row>();
         foreach (var p in pending)
-            rows.Add(new Row(Local(p.CreatedAt), p.Text,
+            rows.Add(new Row(Local(p.CreatedAt), p.Text, [],
                 $"{SourceText(p.Source)}  ·  {L.T("notes.pending")}",
                 () => { host.Database.OutboxRemove(p.ClientId); return Task.CompletedTask; }, Pending: true));
-        foreach (var n in notes.Where(n => !n.Deleted))
-            rows.Add(new Row(Local(n.CreatedAt), string.IsNullOrWhiteSpace(n.Text) ? n.Title : n.Text, Meta(n),
-                () => host.Api.DeleteNoteAsync(n.Id), Pending: false));
+        foreach (var d in dictations)
+            rows.Add(new Row(Local(d.ReceivedAt), d.Text, d.Notes.Select(Item).ToList(), SourceText(d.Source),
+                () => host.Api.DeleteDictationAsync(d.Id), Pending: false));
 
         List.Children.Clear();
         if (rows.Count == 0)
@@ -131,10 +132,20 @@ public partial class NotesWindow : Wpf.Ui.Controls.FluentWindow
         };
         Typography.SetNumeralAlignment(time, FontNumeralAlignment.Tabular);
 
-        var said = new TextBlock { Text = row.Said, Style = (Style)FindResource("Eule.RowTitle"), TextWrapping = TextWrapping.Wrap };
+        var said = new TextBlock
+        {
+            Text = $"“{row.Said}”", FontSize = 13, FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap,
+            Foreground = B("Eule.Muted"),
+        };
         var meta = new TextBlock { Text = row.Meta, Style = (Style)FindResource("Eule.RowDesc") };
         var text = new StackPanel();
         text.Children.Add(said);
+        foreach (string item in row.Items)
+            text.Children.Add(new TextBlock
+            {
+                Text = item, Style = (Style)FindResource("Eule.RowTitle"), TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 0),
+            });
         text.Children.Add(meta);
 
         var delete = new Button
@@ -205,15 +216,16 @@ public partial class NotesWindow : Wpf.Ui.Controls.FluentWindow
 
     // ------------------------------------------------------------------ text
 
-    static string Meta(NoteInfo n)
+    /// <summary>"Ajanda · Ayşe'yi ara · 23 Kasım Pzt, 15:00", "Yapılacak · Süt al · Tamamlandı".</summary>
+    static string Item(NoteInfo n)
     {
-        var parts = new List<string> { SourceText(n.Source) };
-        if (n.DueAt is DateTime due)
+        var parts = new List<string>
         {
-            var local = InZone(due, n.TimeZone);
-            string when = local.ToString(n.HasTime ? "d MMMM ddd, HH:mm" : "d MMMM ddd", L.Culture);
-            parts.Add(L.F("notes.due", when));
-        }
+            L.T(n.Kind switch { "event" => "notes.kind.event", "todo" => "notes.kind.todo", _ => "notes.kind.note" }),
+            n.Title,
+        };
+        if (n.DueAt is DateTime due)
+            parts.Add(InZone(due, n.TimeZone).ToString(n.HasTime ? "d MMMM ddd, HH:mm" : "d MMMM ddd", L.Culture));
         if (n.Done) parts.Add(L.T("notes.done"));
         return string.Join("  ·  ", parts);
     }

@@ -4,31 +4,37 @@ using Eule.Server.Data;
 namespace Eule.Server.Agents;
 
 /// <summary>A dictated sentence on its way to an agent, with everything needed to act on it.</summary>
-public sealed record DictationContext(User User, string Text, TimeZoneInfo Zone, string Source, DateTime UtcNow)
+public sealed record DictationContext(User User, Guid DictationId, string Text, TimeZoneInfo Zone, string Source, DateTime UtcNow)
 {
     public DateTime LocalNow => TimeZoneInfo.ConvertTimeFromUtc(UtcNow, Zone);
 }
 
-/// <summary>What an agent did. <see cref="Action"/> is a stable name the client can react to ("note.created").</summary>
-public sealed record AgentOutcome(string Action, Note? Note, string Reply);
+/// <summary>
+/// What an agent did. <see cref="Action"/> is a stable name the client can react to ("note.created").
+/// <see cref="Notes"/> are added to the database context but not saved; the endpoint saves them with the dictation.
+/// </summary>
+public sealed record AgentOutcome(string Action, IReadOnlyList<Note> Notes, string Reply, string Agent,
+    int InputTokens = 0, int OutputTokens = 0)
+{
+    public Note? Note => Notes.Count > 0 ? Notes[0] : null;
+}
 
 /// <summary>
-/// Decides what to do with a dictation and does it. Today there is one agent, <see cref="SaveNoteAgent"/>.
-/// Later an AI agent (an LLM with tools: create note, add calendar event, send message…) plugs in here
-/// without changing the endpoint or the client: the client only ever sends text and shows the reply.
+/// Decides what to do with a dictation and does it. With an OpenAI key the <see cref="OpenAiDictationAgent"/>
+/// understands and rewrites it; without one (or when the model fails) the <see cref="SaveNoteAgent"/> does.
+/// The client only ever sends text and shows the reply, so agents can change without touching it.
 /// </summary>
 public interface IDictationAgent
 {
-    string Name { get; }
     Task<AgentOutcome> HandleAsync(DictationContext ctx, CancellationToken ct);
 }
 
-/// <summary>Understands the time in Turkish and saves the sentence as a note.</summary>
+/// <summary>Understands the time in Turkish with rules and saves the sentence as one item. Free and offline.</summary>
 public sealed class SaveNoteAgent(EuleDbContext db) : IDictationAgent
 {
-    public string Name => "save-note";
+    public const string AgentName = "save-note";
 
-    public async Task<AgentOutcome> HandleAsync(DictationContext ctx, CancellationToken ct)
+    public Task<AgentOutcome> HandleAsync(DictationContext ctx, CancellationToken ct)
     {
         var parsed = NoteParser.Parse(ctx.Text, ctx.LocalNow);
         DateTime? dueUtc = parsed.DueLocal is DateTime local
@@ -38,6 +44,8 @@ public sealed class SaveNoteAgent(EuleDbContext db) : IDictationAgent
         var note = new Note
         {
             UserId = ctx.User.Id,
+            DictationId = ctx.DictationId,
+            Kind = dueUtc != null ? NoteKinds.Event : NoteKinds.Todo,
             Text = ctx.Text,
             Title = parsed.Title,
             DueAt = dueUtc,
@@ -52,6 +60,6 @@ public sealed class SaveNoteAgent(EuleDbContext db) : IDictationAgent
         string reply = parsed.DueLocal is DateTime due
             ? $"Kaydettim: {parsed.Title} · {NoteParser.Describe(due, parsed.HasTime, ctx.LocalNow)}"
             : $"Kaydettim: {parsed.Title}";
-        return await Task.FromResult(new AgentOutcome("note.created", note, reply));
+        return Task.FromResult(new AgentOutcome("note.created", [note], reply, AgentName));
     }
 }

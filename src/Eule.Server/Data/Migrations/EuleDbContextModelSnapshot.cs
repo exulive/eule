@@ -41,8 +41,17 @@ namespace Eule.Server.Data.Migrations
                     b.Property<Guid>("ClientId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("integer");
+
                     b.Property<Guid?>("NoteId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("ReceivedAt")
                         .HasColumnType("timestamp with time zone");
@@ -75,6 +84,8 @@ namespace Eule.Server.Data.Migrations
                     b.HasIndex("UserId", "ClientId")
                         .IsUnique();
 
+                    b.HasIndex("UserId", "ReceivedAt");
+
                     b.ToTable("dictations", (string)null);
                 });
 
@@ -84,11 +95,21 @@ namespace Eule.Server.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasDefaultValue("");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DictationId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Done")
                         .HasColumnType("boolean");
@@ -98,6 +119,13 @@ namespace Eule.Server.Data.Migrations
 
                     b.Property<bool>("HasTime")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("todo");
 
                     b.Property<string>("Source")
                         .IsRequired()
@@ -126,6 +154,8 @@ namespace Eule.Server.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DictationId");
 
                     b.HasIndex("UserId", "UpdatedAt");
 
@@ -180,6 +210,9 @@ namespace Eule.Server.Data.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DictationLimit")
+                        .HasColumnType("integer");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
