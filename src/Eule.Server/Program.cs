@@ -100,10 +100,9 @@ app.Use((ctx, next) =>
         "frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
     return next();
 });
-app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
-    // Always revalidate, so a new deploy reaches the browser at once.
+    // Asset links carry a content hash (see WebApp), so a changed file always has a new address.
     OnPrepareResponse = c => c.Context.Response.Headers.CacheControl = "no-cache",
 });
 app.UseAuthentication();
@@ -111,7 +110,11 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
-// "/" is the web app (wwwroot/index.html).
+app.MapGet("/", (HttpContext ctx, IWebHostEnvironment env) =>
+{
+    ctx.Response.Headers.CacheControl = "no-cache";
+    return WebApp.Page(env);
+});
 app.MapGet("/health", async (EuleDbContext db) =>
     await db.Database.CanConnectAsync()
         ? Results.Ok(new { status = "ok", version })

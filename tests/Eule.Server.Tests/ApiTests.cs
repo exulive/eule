@@ -98,7 +98,11 @@ public class ApiTests : IClassFixture<ApiFactory>
         var res = await c.GetAsync("/");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal("text/html", res.Content.Headers.ContentType?.MediaType);
-        Assert.Contains("login-form", await res.Content.ReadAsStringAsync());
+        string html = await res.Content.ReadAsStringAsync();
+        Assert.Contains("login-form", html);
+        // Asset links carry a content hash so Cloudflare never serves an old copy.
+        Assert.DoesNotContain("__V__", html);
+        Assert.Matches(@"app\.js\?v=[0-9a-f]{10}""", html);
         Assert.Contains("script-src 'self'", res.Headers.GetValues("Content-Security-Policy").Single());
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/app.js")).StatusCode);
     }
